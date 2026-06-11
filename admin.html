@@ -154,15 +154,21 @@
         comissao: Number(document.getElementById("v-comissao").value) || 0,
       };
 
-      if (editandoId) {
-        await API.atualizarVendedor(editandoId, dados);
-      } else {
-        await API.criarVendedor(dados);
-      }
+      try {
+        if (editandoId) {
+          await API.atualizarVendedor(editandoId, dados);
+          alert("Vendedor atualizado com sucesso!");
+        } else {
+          await API.criarVendedor(dados);
+          alert("Vendedor cadastrado com sucesso!");
+        }
 
-      sairDoModoEdicao();
-      form.reset();
-      await renderizarVendedores();
+        sairDoModoEdicao();
+        form.reset();
+        await renderizarVendedores();
+      } catch (erro) {
+        alert(`Erro ao salvar vendedor: ${erro.message}`);
+      }
     });
 
     tbody.addEventListener("click", async (e) => {
@@ -173,8 +179,12 @@
 
       if (btn.dataset.acao === "excluir") {
         if (confirm("Deseja realmente excluir este vendedor?")) {
-          await API.excluirVendedor(id);
-          await renderizarVendedores();
+          try {
+            await API.excluirVendedor(id);
+            await renderizarVendedores();
+          } catch (erro) {
+            alert(`Erro ao excluir vendedor: ${erro.message}`);
+          }
         }
       }
 

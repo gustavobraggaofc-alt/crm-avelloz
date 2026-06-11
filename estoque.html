@@ -249,14 +249,20 @@
           status: document.getElementById("mf-status").value,
         };
 
-        if (editando) {
-          await API.atualizarMoto(moto.id, dados);
-        } else {
-          await API.criarMoto(dados);
-        }
+        try {
+          if (editando) {
+            await API.atualizarMoto(moto.id, dados);
+            alert("Moto atualizada com sucesso!");
+          } else {
+            await API.criarMoto(dados);
+            alert("Moto cadastrada com sucesso!");
+          }
 
-        fecharModal();
-        await renderizarEstoque();
+          fecharModal();
+          await renderizarEstoque();
+        } catch (erro) {
+          alert(`Erro ao salvar moto: ${erro.message}`);
+        }
       });
     }
 
@@ -276,8 +282,12 @@
         abrirFormularioMoto(moto);
       } else if (btn.dataset.acao === "excluir") {
         if (confirm(`Deseja realmente excluir "${moto.marca} ${moto.modelo}"?`)) {
-          await API.excluirMoto(id);
-          await renderizarEstoque();
+          try {
+            await API.excluirMoto(id);
+            await renderizarEstoque();
+          } catch (erro) {
+            alert(`Erro ao excluir moto: ${erro.message}`);
+          }
         }
       }
     });

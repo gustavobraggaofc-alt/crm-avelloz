@@ -228,12 +228,16 @@
         observacoes: document.getElementById("observacoes").value.trim(),
       };
 
-      await API.registrarVenda(dados);
-      alert("Venda registrada com sucesso!");
+      try {
+        await API.registrarVenda(dados);
+        alert("Venda registrada com sucesso!");
 
-      form.reset();
-      motoSelecionada = null;
-      await carregarEstoque();
+        form.reset();
+        motoSelecionada = null;
+        await carregarEstoque();
+      } catch (erro) {
+        alert(`Erro ao registrar venda: ${erro.message}`);
+      }
     });
 
     carregarVendedores();

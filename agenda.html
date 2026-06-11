@@ -221,14 +221,20 @@
           status: document.getElementById("af-status").value,
         };
 
-        if (editando) {
-          await API.atualizarAgenda(item.id, dados);
-        } else {
-          await API.criarAgenda(dados);
-        }
+        try {
+          if (editando) {
+            await API.atualizarAgenda(item.id, dados);
+            alert("Agendamento atualizado com sucesso!");
+          } else {
+            await API.criarAgenda(dados);
+            alert("Agendamento criado com sucesso!");
+          }
 
-        fecharModal();
-        await carregarAgenda();
+          fecharModal();
+          await carregarAgenda();
+        } catch (erro) {
+          alert(`Erro ao salvar agendamento: ${erro.message}`);
+        }
       });
     }
 
@@ -247,8 +253,12 @@
         abrirFormularioAgenda(item);
       } else if (btn.dataset.acao === "excluir") {
         if (confirm(`Deseja realmente excluir "${item.titulo}"?`)) {
-          await API.excluirAgenda(id);
-          await carregarAgenda();
+          try {
+            await API.excluirAgenda(id);
+            await carregarAgenda();
+          } catch (erro) {
+            alert(`Erro ao excluir agendamento: ${erro.message}`);
+          }
         }
       }
     });

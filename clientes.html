@@ -212,14 +212,20 @@
           cpf: document.getElementById("cf-cpf").value.trim(),
         };
 
-        if (editando) {
-          await API.atualizarCliente(cliente.id, dados);
-        } else {
-          await API.criarCliente(dados);
-        }
+        try {
+          if (editando) {
+            await API.atualizarCliente(cliente.id, dados);
+            alert("Cliente atualizado com sucesso!");
+          } else {
+            await API.criarCliente(dados);
+            alert("Cliente cadastrado com sucesso!");
+          }
 
-        fecharModal();
-        await renderizarClientes();
+          fecharModal();
+          await renderizarClientes();
+        } catch (erro) {
+          alert(`Erro ao salvar cliente: ${erro.message}`);
+        }
       });
     }
 
@@ -306,8 +312,12 @@
         abrirFormularioCliente(cliente);
       } else if (btn.dataset.acao === "excluir") {
         if (confirm(`Deseja realmente excluir o cliente "${cliente.nome}"?`)) {
-          await API.excluirCliente(id);
-          await renderizarClientes();
+          try {
+            await API.excluirCliente(id);
+            await renderizarClientes();
+          } catch (erro) {
+            alert(`Erro ao excluir cliente: ${erro.message}`);
+          }
         }
       }
     });

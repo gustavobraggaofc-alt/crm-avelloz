@@ -116,8 +116,13 @@
       const input = document.querySelector(`.input-meta[data-id="${id}"]`);
       const novaMeta = Number(input.value) || 0;
 
-      await API.atualizarVendedor(id, { meta: novaMeta });
-      await renderizarMetas();
+      try {
+        await API.atualizarVendedor(id, { meta: novaMeta });
+        alert("Meta atualizada com sucesso!");
+        await renderizarMetas();
+      } catch (erro) {
+        alert(`Erro ao atualizar meta: ${erro.message}`);
+      }
     });
 
     renderizarMetas();
