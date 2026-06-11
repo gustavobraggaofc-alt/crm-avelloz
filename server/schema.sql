@@ -38,12 +38,12 @@ CREATE TABLE IF NOT EXISTS motos (
 
 CREATE TABLE IF NOT EXISTS vendas (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  cliente_id BIGINT REFERENCES clientes(id),
+  cliente_id BIGINT REFERENCES clientes(id) ON DELETE SET NULL,
   cliente_nome TEXT NOT NULL,
   cliente_telefone TEXT,
   cliente_cpf TEXT,
-  vendedor_id BIGINT REFERENCES vendedores(id),
-  moto_id BIGINT REFERENCES motos(id),
+  vendedor_id BIGINT REFERENCES vendedores(id) ON DELETE SET NULL,
+  moto_id BIGINT REFERENCES motos(id) ON DELETE SET NULL,
   moto_descricao TEXT,
   valor DOUBLE PRECISION DEFAULT 0,
   forma_pagamento TEXT,
@@ -58,13 +58,13 @@ CREATE TABLE IF NOT EXISTS agenda (
   hora TEXT,
   titulo TEXT NOT NULL,
   descricao TEXT,
-  vendedor_id BIGINT REFERENCES vendedores(id),
+  vendedor_id BIGINT REFERENCES vendedores(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'Pendente'
 );
 
 CREATE TABLE IF NOT EXISTS simulacoes_financiamento (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  vendedor_id BIGINT REFERENCES vendedores(id),
+  vendedor_id BIGINT REFERENCES vendedores(id) ON DELETE SET NULL,
   cliente_nome TEXT,
   valor_veiculo DOUBLE PRECISION,
   entrada DOUBLE PRECISION,
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS simulacoes_financiamento (
 
 CREATE TABLE IF NOT EXISTS simulacoes_consorcio (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  vendedor_id BIGINT REFERENCES vendedores(id),
+  vendedor_id BIGINT REFERENCES vendedores(id) ON DELETE SET NULL,
   cliente_nome TEXT,
   valor_carta DOUBLE PRECISION,
   prazo INTEGER,
