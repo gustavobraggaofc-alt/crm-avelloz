@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Vender</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Vender</h1>
+          <p>Registrar uma nova venda de moto</p>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO DE VENDA -->
+      <form class="panel" id="form-venda" style="margin-bottom: 24px;">
+        <div class="panel__title">Dados da Venda</div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="cliente-nome">Nome do Cliente</label>
+            <input type="text" id="cliente-nome" placeholder="Ex: Roberto Lima" required />
+          </div>
+          <div class="field">
+            <label for="cliente-telefone">Telefone</label>
+            <input type="text" id="cliente-telefone" placeholder="(11) 99999-0000" />
+          </div>
+          <div class="field">
+            <label for="cliente-cpf">CPF</label>
+            <input type="text" id="cliente-cpf" placeholder="000.000.000-00" />
+          </div>
+          <div class="field">
+            <label for="vendedor">Vendedor Responsável</label>
+            <select id="vendedor"></select>
+          </div>
+
+          <div class="field">
+            <label for="moto-marca">Marca</label>
+            <select id="moto-marca">
+              <option>Honda</option>
+              <option>Yamaha</option>
+              <option>Suzuki</option>
+              <option>Kawasaki</option>
+              <option>Royal Enfield</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="moto-modelo">Modelo</label>
+            <input type="text" id="moto-modelo" placeholder="Ex: CG 160 Titan" />
+          </div>
+          <div class="field">
+            <label for="moto-ano">Ano</label>
+            <input type="number" id="moto-ano" placeholder="2026" />
+          </div>
+          <div class="field">
+            <label for="moto-cor">Cor</label>
+            <input type="text" id="moto-cor" placeholder="Ex: Vermelha" />
+          </div>
+
+          <div class="field">
+            <label for="valor">Valor da Venda</label>
+            <input type="text" id="valor" placeholder="R$ 0,00" />
+          </div>
+          <div class="field">
+            <label for="pagamento">Forma de Pagamento</label>
+            <select id="pagamento">
+              <option>À vista</option>
+              <option>Financiamento</option>
+              <option>Consórcio</option>
+              <option>Cartão de Crédito</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label for="observacoes">Observações</label>
+            <textarea id="observacoes" rows="3" placeholder="Informações adicionais sobre a venda..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="reset" class="btn btn--ghost">Limpar</button>
+          <button type="submit" class="btn btn--primary">Registrar Venda</button>
+        </div>
+      </form>
+
+      <!-- ESTOQUE DISPONÍVEL -->
+      <div class="page-header">
+        <div>
+          <h1 style="font-size: 18px;">Motos em Estoque</h1>
+          <p>Selecione uma moto disponível para agilizar a venda</p>
+        </div>
+      </div>
+
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Modelo</th>
+              <th>Marca</th>
+              <th>Ano</th>
+              <th>Cor</th>
+              <th>Valor</th>
+              <th>Estoque</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lista-estoque-vender">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const selectVendedor = document.getElementById("vendedor");
+    const tbodyEstoque = document.getElementById("lista-estoque-vender");
+    const form = document.getElementById("form-venda");
+    let motoSelecionada = null;
+
+    // Preenche o select de vendedores com os dados cadastrados no Admin
+    async function carregarVendedores() {
+      const vendedores = await API.listarVendedores();
+      vendedores.forEach((v) => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.nome;
+        selectVendedor.appendChild(opt);
+      });
+    }
+
+    // Lista as motos disponíveis em estoque
+    async function carregarEstoque() {
+      const motos = await API.listarMotos();
+      tbodyEstoque.innerHTML = "";
+
+      motos.forEach((m) => {
+        let classeBadge = "badge--success";
+        if (m.quantidade === 0) classeBadge = "badge--danger";
+        else if (m.quantidade <= 2) classeBadge = "badge--warning";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${m.modelo}</td>
+          <td>${m.marca}</td>
+          <td>${m.ano}</td>
+          <td>${m.cor}</td>
+          <td>${formatarMoeda(m.valor)}</td>
+          <td><span class="badge ${classeBadge}">${m.quantidade} unidades</span></td>
+          <td>
+            ${
+              m.quantidade > 0
+                ? `<button class="btn btn--ghost" type="button" data-id="${m.id}">Selecionar</button>`
+                : `<button class="btn btn--ghost" type="button" disabled>Indisponível</button>`
+            }
+          </td>
+        `;
+        tbodyEstoque.appendChild(tr);
+      });
+    }
+
+    tbodyEstoque.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-id]");
+      if (!btn) return;
+
+      const motos = await API.listarMotos();
+      const moto = motos.find((m) => m.id === Number(btn.dataset.id));
+      if (!moto) return;
+
+      motoSelecionada = moto;
+      document.getElementById("moto-marca").value = moto.marca;
+      document.getElementById("moto-modelo").value = moto.modelo;
+      document.getElementById("moto-ano").value = moto.ano;
+      document.getElementById("moto-cor").value = moto.cor;
+      document.getElementById("valor").value = formatarMoeda(moto.valor);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    form.addEventListener("reset", () => {
+      motoSelecionada = null;
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const dados = {
+        cliente_nome: document.getElementById("cliente-nome").value.trim(),
+        cliente_telefone: document.getElementById("cliente-telefone").value.trim(),
+        cliente_cpf: document.getElementById("cliente-cpf").value.trim(),
+        vendedor_id: Number(selectVendedor.value) || null,
+        moto_id: motoSelecionada ? motoSelecionada.id : null,
+        moto_descricao: `${document.getElementById("moto-marca").value} ${document.getElementById("moto-modelo").value}`.trim(),
+        valor: parseMoeda(document.getElementById("valor").value),
+        forma_pagamento: document.getElementById("pagamento").value,
+        observacoes: document.getElementById("observacoes").value.trim(),
+      };
+
+      await API.registrarVenda(dados);
+      alert("Venda registrada com sucesso!");
+
+      form.reset();
+      motoSelecionada = null;
+      await carregarEstoque();
+    });
+
+    carregarVendedores();
+    carregarEstoque();
+  </script>
+</body>
+</html>

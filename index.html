@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Visão geral das vendas da Avelloz Motos</p>
+        </div>
+        <div class="toolbar">
+          <select>
+            <option>Este mês</option>
+            <option>Mês passado</option>
+            <option>Este ano</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- CARDS KPI -->
+      <section class="cards-grid">
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🛵</span> Vendas Hoje
+          </div>
+          <div class="value" id="kpi-vendas-hoje">0</div>
+          <div class="delta" id="kpi-vendas-hoje-delta"></div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">📦</span> Vendas no Mês
+          </div>
+          <div class="value" id="kpi-vendas-mes">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">💰</span> Faturamento do Mês
+          </div>
+          <div class="value" id="kpi-faturamento-mes">R$ 0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🎯</span> Meta do Mês
+          </div>
+          <div class="value" id="kpi-meta-mes">0%</div>
+          <div class="progress">
+            <div class="progress__bar" id="kpi-meta-mes-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRÁFICO + RANKING RESUMIDO -->
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel__title">
+            Vendas por mês
+            <span class="tag">Últimos 6 meses</span>
+          </div>
+          <div class="chart-bars">
+            <div class="bar-wrap">
+              <div class="bar" style="height: 55%;" data-valor="R$ 66k"></div>
+              <span class="bar-label">Jan</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 70%;" data-valor="R$ 84k"></div>
+              <span class="bar-label">Fev</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 45%;" data-valor="R$ 54k"></div>
+              <span class="bar-label">Mar</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 80%;" data-valor="R$ 96k"></div>
+              <span class="bar-label">Abr</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 65%;" data-valor="R$ 78k"></div>
+              <span class="bar-label">Mai</span>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 95%;" data-valor="R$ 114k"></div>
+              <span class="bar-label">Jun</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__title">
+            Top Vendedores
+            <span class="tag">Mês atual</span>
+          </div>
+          <div class="mini-ranking" id="mini-ranking">
+            <!-- preenchido via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TABELA DE ÚLTIMAS VENDAS -->
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Vendedor</th>
+              <th>Moto</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="lista-ultimas-vendas">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const CLASSE_BADGE_VENDA = {
+      "Concluída": "badge--success",
+      "Financiamento": "badge--info",
+      "Aguardando pagamento": "badge--warning",
+      "Cancelada": "badge--danger",
+    };
+
+    async function renderizarDashboard() {
+      const dados = await API.obterDashboard();
+
+      document.getElementById("kpi-vendas-hoje").textContent = dados.vendasHoje;
+      document.getElementById("kpi-vendas-mes").textContent = dados.vendasMes;
+      document.getElementById("kpi-faturamento-mes").textContent = formatarMoeda(dados.faturamentoMes);
+
+      const diff = dados.vendasHoje - dados.vendasOntem;
+      const deltaEl = document.getElementById("kpi-vendas-hoje-delta");
+      if (diff > 0) {
+        deltaEl.className = "delta up";
+        deltaEl.textContent = `▲ ${diff} a mais que ontem`;
+      } else if (diff < 0) {
+        deltaEl.className = "delta down";
+        deltaEl.textContent = `▼ ${Math.abs(diff)} a menos que ontem`;
+      } else {
+        deltaEl.className = "delta";
+        deltaEl.textContent = "Igual a ontem";
+      }
+
+      document.getElementById("kpi-meta-mes").textContent = `${dados.percentualMeta}%`;
+      document.getElementById("kpi-meta-mes-bar").style.width = `${Math.min(dados.percentualMeta, 100)}%`;
+
+      const classePos = ["gold", "silver", "bronze"];
+      const miniRanking = document.getElementById("mini-ranking");
+      miniRanking.innerHTML = dados.topVendedores
+        .map((v, i) => `
+          <div class="mini-ranking__item">
+            <div class="mini-ranking__pos ${classePos[i] || ""}">${i + 1}</div>
+            <div class="mini-ranking__info">
+              <div class="mini-ranking__name">${v.nome}</div>
+              <div class="mini-ranking__sub">${v.motos_vendidas} motos vendidas</div>
+            </div>
+            <div class="mini-ranking__value">${formatarMoeda(v.vendas_mes)}</div>
+          </div>
+        `)
+        .join("");
+
+      const tbody = document.getElementById("lista-ultimas-vendas");
+      tbody.innerHTML = dados.ultimasVendas
+        .map((v) => {
+          const classeBadge = CLASSE_BADGE_VENDA[v.status] || "badge--info";
+          return `
+            <tr>
+              <td>${v.data}</td>
+              <td>${v.cliente_nome}</td>
+              <td>${v.vendedor_nome || "-"}</td>
+              <td>${v.moto_descricao || "-"}</td>
+              <td>${formatarMoeda(v.valor)}</td>
+              <td><span class="badge ${classeBadge}">${v.status}</span></td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    renderizarDashboard();
+  </script>
+</body>
+</html>

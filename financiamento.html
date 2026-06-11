@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Financiamento e Consórcio</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Financiamento e Consórcio</h1>
+          <p>Simule condições de pagamento para apresentar ao cliente durante a venda</p>
+        </div>
+      </div>
+
+      <!-- ABAS -->
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="financiamento">Financiamento</button>
+        <button type="button" class="tab-btn" data-tab="consorcio">Consórcio</button>
+      </div>
+
+      <!-- SIMULAÇÃO DE FINANCIAMENTO -->
+      <div class="tab-content active" id="tab-financiamento">
+        <div class="panel">
+          <div class="panel__title">
+            Simulação de Financiamento
+            <span class="tag">Tabela Price</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="fin-valor">Valor do Veículo (R$)</label>
+              <input type="number" id="fin-valor" value="25000" min="0" step="100" />
+            </div>
+            <div class="field">
+              <label for="fin-entrada">Valor de Entrada (R$)</label>
+              <input type="number" id="fin-entrada" value="5000" min="0" step="100" />
+            </div>
+            <div class="field">
+              <label for="fin-parcelas">Número de Parcelas</label>
+              <select id="fin-parcelas">
+                <option value="12">12x</option>
+                <option value="24">24x</option>
+                <option value="36">36x</option>
+                <option value="48" selected>48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-juros">Taxa de Juros (% ao mês)</label>
+              <input type="number" id="fin-juros" value="1.99" min="0" step="0.01" />
+            </div>
+          </div>
+
+          <div class="resultado-grid">
+            <div class="resultado-item">
+              <div class="resultado-item__label">Valor Financiado</div>
+              <div class="resultado-item__valor" id="fin-financiado">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Parcela Mensal</div>
+              <div class="resultado-item__valor destaque" id="fin-parcela">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Total a Pagar</div>
+              <div class="resultado-item__valor" id="fin-total">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Total de Juros</div>
+              <div class="resultado-item__valor" id="fin-juros-total">R$ 0,00</div>
+            </div>
+          </div>
+
+          <p class="nota">* Simulação pelo sistema de amortização Price (parcelas fixas). Valores aproximados, sujeitos à análise e aprovação de crédito da financeira.</p>
+        </div>
+
+        <div class="panel" style="margin-top: 20px;">
+          <div class="panel__title">
+            Antecipar 1ª e Última Parcela
+            <span class="tag">Opcional</span>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-row__label">Pagar a 1ª e a última parcela no ato</div>
+              <div class="toggle-row__desc">O cliente paga a entrada + a 1ª parcela + a última parcela (com desconto de juros) no momento da compra, e financia o restante</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="fin-antecipar" /><span class="toggle__slider"></span></label>
+          </div>
+
+          <div class="resultado-grid" id="fin-antecipacao-resultado" style="display: none;">
+            <div class="resultado-item">
+              <div class="resultado-item__label">Valor a Pagar no Ato</div>
+              <div class="resultado-item__valor destaque" id="fin-valor-ato">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Parcelas Restantes</div>
+              <div class="resultado-item__valor" id="fin-parcelas-restantes">—</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Novo Total a Pagar</div>
+              <div class="resultado-item__valor" id="fin-novo-total">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Economia de Juros</div>
+              <div class="resultado-item__valor destaque" id="fin-economia">R$ 0,00</div>
+            </div>
+          </div>
+
+          <p class="nota">* A última parcela é trazida a valor presente (desconto dos juros do período), gerando economia. A 1ª parcela é antecipada sem desconto.</p>
+        </div>
+      </div>
+
+      <!-- SIMULAÇÃO DE CONSÓRCIO -->
+      <div class="tab-content" id="tab-consorcio">
+        <div class="panel">
+          <div class="panel__title">Simulação de Consórcio</div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="cons-carta">Valor da Carta de Crédito (R$)</label>
+              <input type="number" id="cons-carta" value="30000" min="0" step="100" />
+            </div>
+            <div class="field">
+              <label for="cons-prazo">Prazo</label>
+              <select id="cons-prazo">
+                <option value="36">36 meses</option>
+                <option value="48">48 meses</option>
+                <option value="60" selected>60 meses</option>
+                <option value="72">72 meses</option>
+                <option value="80">80 meses</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cons-taxa">Taxa de Administração Total (%)</label>
+              <input type="number" id="cons-taxa" value="18" min="0" step="0.1" />
+            </div>
+            <div class="field">
+              <label for="cons-fundo">Fundo de Reserva (%)</label>
+              <input type="number" id="cons-fundo" value="2" min="0" step="0.1" />
+            </div>
+          </div>
+
+          <div class="resultado-grid">
+            <div class="resultado-item">
+              <div class="resultado-item__label">Parcela Mensal</div>
+              <div class="resultado-item__valor destaque" id="cons-parcela">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Total de Taxas</div>
+              <div class="resultado-item__valor" id="cons-taxas">R$ 0,00</div>
+            </div>
+            <div class="resultado-item">
+              <div class="resultado-item__label">Valor Total a Pagar</div>
+              <div class="resultado-item__valor" id="cons-total">R$ 0,00</div>
+            </div>
+          </div>
+
+          <p class="nota">* Consórcio não é financiamento: não há juros, mas a contemplação ocorre por sorteio ou lance. Valores aproximados, sujeitos ao regulamento da administradora.</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/script.js"></script>
+  <script>
+    // ---- Alternância de abas ----
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // ---- Simulação de Financiamento (Tabela Price) ----
+    function calcularFinanciamento() {
+      const valorVeiculo = Number(document.getElementById("fin-valor").value) || 0;
+      const entrada = Number(document.getElementById("fin-entrada").value) || 0;
+      const parcelas = Number(document.getElementById("fin-parcelas").value) || 1;
+      const taxa = (Number(document.getElementById("fin-juros").value) || 0) / 100;
+
+      const financiado = Math.max(valorVeiculo - entrada, 0);
+
+      const parcela = taxa === 0
+        ? financiado / parcelas
+        : (financiado * taxa) / (1 - Math.pow(1 + taxa, -parcelas));
+
+      const total = parcela * parcelas + entrada;
+      const totalJuros = Math.max(total - valorVeiculo, 0);
+
+      document.getElementById("fin-financiado").textContent = formatarMoeda(financiado);
+      document.getElementById("fin-parcela").textContent = `${parcelas}x de ${formatarMoeda(parcela)}`;
+      document.getElementById("fin-total").textContent = formatarMoeda(total);
+      document.getElementById("fin-juros-total").textContent = formatarMoeda(totalJuros);
+
+      atualizarAntecipacao(parcela, parcelas, taxa, entrada, total);
+    }
+
+    // ---- Antecipação da 1ª e última parcela ----
+    function atualizarAntecipacao(parcela, parcelas, taxa, entrada, total) {
+      const ativo = document.getElementById("fin-antecipar").checked;
+      const resultado = document.getElementById("fin-antecipacao-resultado");
+
+      if (!ativo || parcelas <= 2) {
+        resultado.style.display = "none";
+        return;
+      }
+
+      resultado.style.display = "grid";
+
+      const pvUltima = taxa === 0 ? parcela : parcela / Math.pow(1 + taxa, parcelas);
+      const economia = parcela - pvUltima;
+      const valorAto = entrada + parcela + pvUltima;
+      const parcelasRestantes = parcelas - 2;
+      const novoTotal = total - economia;
+
+      document.getElementById("fin-valor-ato").textContent = formatarMoeda(valorAto);
+      document.getElementById("fin-parcelas-restantes").textContent = `${parcelasRestantes}x de ${formatarMoeda(parcela)}`;
+      document.getElementById("fin-novo-total").textContent = formatarMoeda(novoTotal);
+      document.getElementById("fin-economia").textContent = formatarMoeda(economia);
+    }
+
+    ["fin-valor", "fin-entrada", "fin-parcelas", "fin-juros"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", calcularFinanciamento);
+    });
+
+    document.getElementById("fin-antecipar").addEventListener("change", calcularFinanciamento);
+
+    // ---- Simulação de Consórcio ----
+    function calcularConsorcio() {
+      const carta = Number(document.getElementById("cons-carta").value) || 0;
+      const prazo = Number(document.getElementById("cons-prazo").value) || 1;
+      const taxaAdm = (Number(document.getElementById("cons-taxa").value) || 0) / 100;
+      const fundoReserva = (Number(document.getElementById("cons-fundo").value) || 0) / 100;
+
+      const totalTaxas = carta * (taxaAdm + fundoReserva);
+      const totalPagar = carta + totalTaxas;
+      const parcela = totalPagar / prazo;
+
+      document.getElementById("cons-parcela").textContent = `${prazo}x de ${formatarMoeda(parcela)}`;
+      document.getElementById("cons-taxas").textContent = formatarMoeda(totalTaxas);
+      document.getElementById("cons-total").textContent = formatarMoeda(totalPagar);
+    }
+
+    ["cons-carta", "cons-prazo", "cons-taxa", "cons-fundo"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", calcularConsorcio);
+    });
+
+    calcularFinanciamento();
+    calcularConsorcio();
+  </script>
+</body>
+</html>

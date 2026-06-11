@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Relatórios</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Relatórios</h1>
+          <p>Gere relatórios detalhados de vendas e desempenho</p>
+        </div>
+        <div class="toolbar">
+          <select>
+            <option>Este mês</option>
+            <option>Mês passado</option>
+            <option>Trimestre</option>
+            <option>Este ano</option>
+          </select>
+          <select>
+            <option>PDF</option>
+            <option>Excel</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- CARDS DE RELATÓRIOS -->
+      <section class="reports-grid">
+        <div class="report-card">
+          <div class="report-card__icon">💰</div>
+          <div class="report-card__title">Relatório de Vendas</div>
+          <div class="report-card__desc">Histórico completo de vendas por período, vendedor, modelo e forma de pagamento.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card__icon">🏆</div>
+          <div class="report-card__title">Relatório de Comissões</div>
+          <div class="report-card__desc">Cálculo de comissões por vendedor com base nas vendas realizadas no período.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card__icon">🏍️</div>
+          <div class="report-card__title">Relatório de Estoque</div>
+          <div class="report-card__desc">Posição atual do estoque, motos reservadas e valor total imobilizado.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card__icon">👥</div>
+          <div class="report-card__title">Relatório de Clientes</div>
+          <div class="report-card__desc">Base de clientes, novos cadastros, recorrência e histórico de compras.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card__icon">🎯</div>
+          <div class="report-card__title">Relatório de Metas</div>
+          <div class="report-card__desc">Acompanhamento das metas mensais por vendedor e percentual atingido.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card__icon">📅</div>
+          <div class="report-card__title">Relatório de Agenda</div>
+          <div class="report-card__desc">Compromissos, test-drives e entregas realizadas no período selecionado.</div>
+          <button class="btn btn--primary" type="button">Gerar Relatório</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

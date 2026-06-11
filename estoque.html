@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Estoque</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Estoque</h1>
+          <p>Controle de motos disponíveis para venda</p>
+        </div>
+        <div class="toolbar">
+          <select id="filtro-marca">
+            <option value="">Todas as marcas</option>
+            <option>Honda</option>
+            <option>Yamaha</option>
+            <option>Suzuki</option>
+            <option>Kawasaki</option>
+            <option>Royal Enfield</option>
+          </select>
+          <input type="text" id="busca-moto" placeholder="Buscar modelo..." />
+          <button class="btn btn--primary" type="button" id="btn-adicionar-moto">+ Adicionar Moto</button>
+        </div>
+      </div>
+
+      <!-- CARDS RESUMO -->
+      <section class="cards-grid">
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🏍️</span> Motos em Estoque
+          </div>
+          <div class="value" id="kpi-motos-estoque">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🧩</span> Modelos Disponíveis
+          </div>
+          <div class="value" id="kpi-modelos">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">💰</span> Valor em Estoque
+          </div>
+          <div class="value" id="kpi-valor-estoque">R$ 0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🔒</span> Reservadas
+          </div>
+          <div class="value" id="kpi-reservadas">0</div>
+        </div>
+      </section>
+
+      <!-- TABELA DE ESTOQUE -->
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Modelo</th>
+              <th>Marca</th>
+              <th>Ano</th>
+              <th>Cor</th>
+              <th>Valor</th>
+              <th>Quantidade</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-estoque">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const CLASSE_BADGE_STATUS = {
+      "Disponível": "badge--success",
+      "Estoque Baixo": "badge--warning",
+      "Esgotado": "badge--danger",
+      "Reservada": "badge--info",
+    };
+
+    let motosCache = [];
+
+    function motosFiltradas() {
+      const marca = document.getElementById("filtro-marca").value;
+      const termo = document.getElementById("busca-moto").value.trim().toLowerCase();
+
+      return motosCache.filter((m) => {
+        const passaMarca = !marca || m.marca === marca;
+        const passaBusca = !termo || m.modelo.toLowerCase().includes(termo);
+        return passaMarca && passaBusca;
+      });
+    }
+
+    function renderizarTabela() {
+      const tbody = document.getElementById("lista-estoque");
+      const lista = motosFiltradas();
+      tbody.innerHTML = "";
+
+      lista.forEach((m) => {
+        const classeBadge = CLASSE_BADGE_STATUS[m.status] || "badge--info";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${m.modelo}</td>
+          <td>${m.marca}</td>
+          <td>${m.ano}</td>
+          <td>${m.cor}</td>
+          <td>${formatarMoeda(m.valor)}</td>
+          <td>${m.quantidade}</td>
+          <td><span class="badge ${classeBadge}">${m.status}</span></td>
+          <td>
+            <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${m.id}">✏️</button>
+            <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${m.id}">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="nota">Nenhuma moto encontrada.</td></tr>`;
+      }
+
+      substituirIcones();
+    }
+
+    async function renderizarEstoque() {
+      motosCache = await API.listarMotos();
+
+      let totalUnidades = 0;
+      let valorTotal = 0;
+      let reservadas = 0;
+
+      motosCache.forEach((m) => {
+        totalUnidades += m.quantidade;
+        valorTotal += m.quantidade * m.valor;
+        if (m.status === "Reservada") reservadas += m.quantidade;
+      });
+
+      document.getElementById("kpi-motos-estoque").textContent = totalUnidades;
+      document.getElementById("kpi-modelos").textContent = motosCache.length;
+      document.getElementById("kpi-valor-estoque").textContent = formatarMoeda(valorTotal);
+      document.getElementById("kpi-reservadas").textContent = reservadas;
+
+      renderizarTabela();
+    }
+
+    function abrirFormularioMoto(moto) {
+      const editando = Boolean(moto);
+      const titulo = editando ? "Editar Moto" : "Adicionar Moto";
+      const marcas = ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Royal Enfield"];
+
+      abrirModal(titulo, `
+        <form id="form-moto">
+          <div class="form-grid">
+            <div class="field">
+              <label for="mf-marca">Marca</label>
+              <select id="mf-marca">
+                ${marcas.map((marca) => `<option ${moto?.marca === marca ? "selected" : ""}>${marca}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="mf-modelo">Modelo</label>
+              <input type="text" id="mf-modelo" placeholder="Ex: CG 160 Titan" required value="${moto?.modelo || ""}" />
+            </div>
+            <div class="field">
+              <label for="mf-ano">Ano</label>
+              <input type="number" id="mf-ano" placeholder="2026" value="${moto?.ano || ""}" />
+            </div>
+            <div class="field">
+              <label for="mf-cor">Cor</label>
+              <input type="text" id="mf-cor" placeholder="Ex: Vermelha" value="${moto?.cor || ""}" />
+            </div>
+            <div class="field">
+              <label for="mf-valor">Valor</label>
+              <input type="text" id="mf-valor" placeholder="R$ 0,00" value="${moto ? formatarMoeda(moto.valor) : ""}" />
+            </div>
+            <div class="field">
+              <label for="mf-quantidade">Quantidade</label>
+              <input type="number" id="mf-quantidade" min="0" placeholder="0" value="${moto?.quantidade ?? ""}" />
+            </div>
+            <div class="field full">
+              <label for="mf-status">Status</label>
+              <select id="mf-status">
+                <option ${moto?.status === "Disponível" || !moto ? "selected" : ""}>Disponível</option>
+                <option ${moto?.status === "Reservada" ? "selected" : ""}>Reservada</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="btn-cancelar-moto">Cancelar</button>
+            <button type="submit" class="btn btn--primary">${editando ? "Salvar Alterações" : "Adicionar Moto"}</button>
+          </div>
+        </form>
+      `);
+
+      document.getElementById("btn-cancelar-moto").addEventListener("click", fecharModal);
+
+      document.getElementById("form-moto").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const dados = {
+          marca: document.getElementById("mf-marca").value,
+          modelo: document.getElementById("mf-modelo").value.trim(),
+          ano: Number(document.getElementById("mf-ano").value) || null,
+          cor: document.getElementById("mf-cor").value.trim(),
+          valor: parseMoeda(document.getElementById("mf-valor").value),
+          quantidade: Number(document.getElementById("mf-quantidade").value) || 0,
+          status: document.getElementById("mf-status").value,
+        };
+
+        if (editando) {
+          await API.atualizarMoto(moto.id, dados);
+        } else {
+          await API.criarMoto(dados);
+        }
+
+        fecharModal();
+        await renderizarEstoque();
+      });
+    }
+
+    document.getElementById("btn-adicionar-moto").addEventListener("click", () => abrirFormularioMoto(null));
+    document.getElementById("filtro-marca").addEventListener("change", renderizarTabela);
+    document.getElementById("busca-moto").addEventListener("input", renderizarTabela);
+
+    document.getElementById("lista-estoque").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-acao]");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.id);
+      const moto = motosCache.find((m) => m.id === id);
+      if (!moto) return;
+
+      if (btn.dataset.acao === "editar") {
+        abrirFormularioMoto(moto);
+      } else if (btn.dataset.acao === "excluir") {
+        if (confirm(`Deseja realmente excluir "${moto.marca} ${moto.modelo}"?`)) {
+          await API.excluirMoto(id);
+          await renderizarEstoque();
+        }
+      }
+    });
+
+    renderizarEstoque();
+  </script>
+</body>
+</html>

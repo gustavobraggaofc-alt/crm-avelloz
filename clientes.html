@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Clientes</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Clientes</h1>
+          <p>Gerencie a base de clientes da Avelloz Motos</p>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="busca-cliente" placeholder="Buscar cliente..." />
+          <button class="btn btn--primary" type="button" id="btn-novo-cliente">+ Novo Cliente</button>
+        </div>
+      </div>
+
+      <!-- CARDS RESUMO -->
+      <section class="cards-grid">
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">👥</span> Total de Clientes
+          </div>
+          <div class="value" id="kpi-total-clientes">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🆕</span> Novos no Mês
+          </div>
+          <div class="value" id="kpi-novos-mes">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🔁</span> Clientes Recorrentes
+          </div>
+          <div class="value" id="kpi-recorrentes">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🎂</span> Aniversariantes do Mês
+          </div>
+          <div class="value" id="kpi-aniversariantes">0</div>
+        </div>
+      </section>
+
+      <!-- TABELA DE CLIENTES -->
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>E-mail</th>
+              <th>CPF</th>
+              <th>Última Compra</th>
+              <th>Motos Compradas</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-clientes">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    let clientesCache = [];
+
+    function clientesFiltrados() {
+      const termo = document.getElementById("busca-cliente").value.trim().toLowerCase();
+      if (!termo) return clientesCache;
+      return clientesCache.filter((c) =>
+        [c.nome, c.telefone, c.email, c.cpf].some((campo) => (campo || "").toLowerCase().includes(termo))
+      );
+    }
+
+    function renderizarTabela() {
+      const tbody = document.getElementById("lista-clientes");
+      const lista = clientesFiltrados();
+      tbody.innerHTML = "";
+
+      lista.forEach((c) => {
+        const classeBadge = c.motos_compradas > 1 ? "badge--success" : "badge--info";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.nome}</td>
+          <td>${c.telefone || "-"}</td>
+          <td>${c.email || "-"}</td>
+          <td>${c.cpf || "-"}</td>
+          <td>${c.ultima_compra || "-"}</td>
+          <td><span class="badge ${classeBadge}">${c.motos_compradas || 0}</span></td>
+          <td>
+            <button class="btn btn--icon" title="Ver" data-acao="ver" data-id="${c.id}">👁️</button>
+            <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${c.id}">✏️</button>
+            <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${c.id}">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="nota">Nenhum cliente encontrado.</td></tr>`;
+      }
+
+      substituirIcones();
+    }
+
+    async function renderizarClientes() {
+      clientesCache = await API.listarClientes();
+
+      const hoje = new Date();
+      const mesAtual = `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+
+      let novosNoMes = 0;
+      let recorrentes = 0;
+
+      clientesCache.forEach((c) => {
+        if (c.motos_compradas > 1) recorrentes++;
+
+        const ultimaCompraMes = (c.ultima_compra || "").split("/").slice(1).join("/");
+        if (c.motos_compradas === 1 && ultimaCompraMes === mesAtual) novosNoMes++;
+      });
+
+      document.getElementById("kpi-total-clientes").textContent = clientesCache.length;
+      document.getElementById("kpi-novos-mes").textContent = novosNoMes;
+      document.getElementById("kpi-recorrentes").textContent = recorrentes;
+      document.getElementById("kpi-aniversariantes").textContent = "0";
+
+      renderizarTabela();
+    }
+
+    function abrirFormularioCliente(cliente) {
+      const editando = Boolean(cliente);
+      const titulo = editando ? "Editar Cliente" : "Novo Cliente";
+
+      abrirModal(titulo, `
+        <form id="form-cliente">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="cf-nome">Nome Completo</label>
+              <input type="text" id="cf-nome" placeholder="Ex: Roberto Lima" required value="${cliente?.nome || ""}" />
+            </div>
+            <div class="field">
+              <label for="cf-telefone">Telefone</label>
+              <input type="text" id="cf-telefone" placeholder="(11) 99999-0000" value="${cliente?.telefone || ""}" />
+            </div>
+            <div class="field">
+              <label for="cf-email">E-mail</label>
+              <input type="email" id="cf-email" placeholder="cliente@email.com" value="${cliente?.email || ""}" />
+            </div>
+            <div class="field full">
+              <label for="cf-cpf">CPF</label>
+              <input type="text" id="cf-cpf" placeholder="000.000.000-00" value="${cliente?.cpf || ""}" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="btn-cancelar-cliente">Cancelar</button>
+            <button type="submit" class="btn btn--primary">${editando ? "Salvar Alterações" : "Cadastrar Cliente"}</button>
+          </div>
+        </form>
+      `);
+
+      document.getElementById("btn-cancelar-cliente").addEventListener("click", fecharModal);
+
+      document.getElementById("form-cliente").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const dados = {
+          nome: document.getElementById("cf-nome").value.trim(),
+          telefone: document.getElementById("cf-telefone").value.trim(),
+          email: document.getElementById("cf-email").value.trim(),
+          cpf: document.getElementById("cf-cpf").value.trim(),
+        };
+
+        if (editando) {
+          await API.atualizarCliente(cliente.id, dados);
+        } else {
+          await API.criarCliente(dados);
+        }
+
+        fecharModal();
+        await renderizarClientes();
+      });
+    }
+
+    async function abrirDetalhesCliente(cliente) {
+      const vendas = await API.listarVendas();
+      const vendasCliente = vendas.filter((v) => v.cliente_id === cliente.id);
+
+      const linhasVendas = vendasCliente.length
+        ? vendasCliente
+            .map(
+              (v) => `
+                <tr>
+                  <td>${v.data}</td>
+                  <td>${v.moto_descricao || "-"}</td>
+                  <td>${formatarMoeda(v.valor)}</td>
+                  <td>${v.forma_pagamento || "-"}</td>
+                  <td><span class="badge badge--info">${v.status}</span></td>
+                </tr>
+              `
+            )
+            .join("")
+        : `<tr><td colspan="5" class="nota">Nenhuma compra registrada.</td></tr>`;
+
+      abrirModal("Detalhes do Cliente", `
+        <div class="detalhe-grid">
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">Nome</div>
+            <div class="detalhe-item__valor">${cliente.nome}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">Telefone</div>
+            <div class="detalhe-item__valor">${cliente.telefone || "-"}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">E-mail</div>
+            <div class="detalhe-item__valor">${cliente.email || "-"}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">CPF</div>
+            <div class="detalhe-item__valor">${cliente.cpf || "-"}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">Última Compra</div>
+            <div class="detalhe-item__valor">${cliente.ultima_compra || "-"}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">Motos Compradas</div>
+            <div class="detalhe-item__valor">${cliente.motos_compradas || 0}</div>
+          </div>
+        </div>
+
+        <div class="panel__title" style="font-size:13px; margin-bottom:10px;">Histórico de Compras</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Moto</th>
+                <th>Valor</th>
+                <th>Pagamento</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${linhasVendas}</tbody>
+          </table>
+        </div>
+      `);
+    }
+
+    document.getElementById("btn-novo-cliente").addEventListener("click", () => abrirFormularioCliente(null));
+    document.getElementById("busca-cliente").addEventListener("input", renderizarTabela);
+
+    document.getElementById("lista-clientes").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-acao]");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.id);
+      const cliente = clientesCache.find((c) => c.id === id);
+      if (!cliente) return;
+
+      if (btn.dataset.acao === "ver") {
+        await abrirDetalhesCliente(cliente);
+      } else if (btn.dataset.acao === "editar") {
+        abrirFormularioCliente(cliente);
+      } else if (btn.dataset.acao === "excluir") {
+        if (confirm(`Deseja realmente excluir o cliente "${cliente.nome}"?`)) {
+          await API.excluirCliente(id);
+          await renderizarClientes();
+        }
+      }
+    });
+
+    renderizarClientes();
+  </script>
+</body>
+</html>

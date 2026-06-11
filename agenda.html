@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Agenda</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Agenda</h1>
+          <p>Compromissos e test-drives agendados</p>
+        </div>
+        <div class="toolbar">
+          <select id="filtro-vendedor">
+            <option value="">Todos os vendedores</option>
+          </select>
+          <button class="btn btn--primary" type="button" id="btn-novo-agendamento">+ Novo Agendamento</button>
+        </div>
+      </div>
+
+      <!-- AGENDA -->
+      <div id="lista-agenda">
+        <!-- preenchido via JS -->
+      </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const DIAS_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+    const CLASSE_BADGE_AGENDA = {
+      "Confirmado": "badge--success",
+      "Agendado": "badge--info",
+      "Pendente": "badge--warning",
+    };
+
+    let agendaCache = [];
+    let vendedoresCache = [];
+
+    function parseDataBR(dataBR) {
+      const [dia, mes, ano] = dataBR.split("/").map(Number);
+      return new Date(ano, mes - 1, dia);
+    }
+
+    function dataBRparaISO(dataBR) {
+      const [d, m, a] = dataBR.split("/");
+      return `${a}-${m}-${d}`;
+    }
+
+    function dataISOparaBR(dataISO) {
+      const [a, m, d] = dataISO.split("-");
+      return `${d}/${m}/${a}`;
+    }
+
+    function rotuloDia(dataBR, hojeBR, amanhaBR) {
+      const nomeDia = DIAS_SEMANA[parseDataBR(dataBR).getDay()];
+      if (dataBR === hojeBR) return `Hoje · ${nomeDia}, ${dataBR}`;
+      if (dataBR === amanhaBR) return `Amanhã · ${nomeDia}, ${dataBR}`;
+      return `${nomeDia}, ${dataBR}`;
+    }
+
+    async function carregarFiltroVendedores() {
+      vendedoresCache = await API.listarVendedores();
+      const select = document.getElementById("filtro-vendedor");
+      vendedoresCache.forEach((v) => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.nome;
+        select.appendChild(opt);
+      });
+    }
+
+    function itensFiltrados() {
+      const vendedorId = document.getElementById("filtro-vendedor").value;
+      if (!vendedorId) return agendaCache;
+      return agendaCache.filter((item) => String(item.vendedor_id || "") === vendedorId);
+    }
+
+    function renderizarAgenda() {
+      const itens = itensFiltrados();
+      const container = document.getElementById("lista-agenda");
+      container.innerHTML = "";
+
+      const hoje = new Date();
+      const amanha = new Date(Date.now() + 86400000);
+      const hojeBR = hoje.toLocaleDateString("pt-BR");
+      const amanhaBR = amanha.toLocaleDateString("pt-BR");
+
+      let diaAtual = null;
+      let blocoDia = null;
+
+      itens.forEach((item) => {
+        if (item.data !== diaAtual) {
+          diaAtual = item.data;
+          blocoDia = document.createElement("div");
+          blocoDia.className = "agenda-day";
+          blocoDia.innerHTML = `<div class="agenda-day__title">${rotuloDia(item.data, hojeBR, amanhaBR)}</div>`;
+          container.appendChild(blocoDia);
+        }
+
+        const sub = item.vendedor_nome ? `${item.descricao} · Vendedor: ${item.vendedor_nome}` : item.descricao;
+        const classeBadge = CLASSE_BADGE_AGENDA[item.status] || "badge--info";
+
+        const div = document.createElement("div");
+        div.className = "agenda-item";
+        div.innerHTML = `
+          <div class="agenda-item__time">${item.hora || "-"}</div>
+          <div class="agenda-item__info">
+            <div class="agenda-item__title">${item.titulo}</div>
+            <div class="agenda-item__sub">${sub || ""}</div>
+          </div>
+          <span class="badge ${classeBadge}">${item.status}</span>
+          <div class="agenda-item__actions">
+            <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${item.id}">✏️</button>
+            <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${item.id}">🗑️</button>
+          </div>
+        `;
+        blocoDia.appendChild(div);
+      });
+
+      if (!itens.length) {
+        container.innerHTML = `<p class="nota">Nenhum compromisso agendado.</p>`;
+      }
+
+      substituirIcones();
+    }
+
+    async function carregarAgenda() {
+      agendaCache = await API.listarAgenda();
+      renderizarAgenda();
+    }
+
+    function abrirFormularioAgenda(item) {
+      const editando = Boolean(item);
+      const titulo = editando ? "Editar Compromisso" : "Novo Agendamento";
+      const status = ["Pendente", "Agendado", "Confirmado"];
+
+      abrirModal(titulo, `
+        <form id="form-agenda">
+          <div class="form-grid">
+            <div class="field">
+              <label for="af-data">Data</label>
+              <input type="date" id="af-data" required value="${item ? dataBRparaISO(item.data) : ""}" />
+            </div>
+            <div class="field">
+              <label for="af-hora">Hora</label>
+              <input type="time" id="af-hora" value="${item?.hora || ""}" />
+            </div>
+            <div class="field full">
+              <label for="af-titulo">Título</label>
+              <input type="text" id="af-titulo" placeholder="Ex: Test-drive · Honda CG 160" required value="${item?.titulo || ""}" />
+            </div>
+            <div class="field full">
+              <label for="af-descricao">Descrição</label>
+              <input type="text" id="af-descricao" placeholder="Ex: Cliente: Roberto Lima" value="${item?.descricao || ""}" />
+            </div>
+            <div class="field">
+              <label for="af-vendedor">Vendedor Responsável</label>
+              <select id="af-vendedor">
+                <option value="">Nenhum</option>
+                ${vendedoresCache.map((v) => `<option value="${v.id}" ${item?.vendedor_id === v.id ? "selected" : ""}>${v.nome}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="af-status">Status</label>
+              <select id="af-status">
+                ${status.map((s) => `<option ${item?.status === s ? "selected" : ""}>${s}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="btn-cancelar-agenda">Cancelar</button>
+            <button type="submit" class="btn btn--primary">${editando ? "Salvar Alterações" : "Criar Agendamento"}</button>
+          </div>
+        </form>
+      `);
+
+      document.getElementById("btn-cancelar-agenda").addEventListener("click", fecharModal);
+
+      document.getElementById("form-agenda").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const dados = {
+          data: dataISOparaBR(document.getElementById("af-data").value),
+          hora: document.getElementById("af-hora").value,
+          titulo: document.getElementById("af-titulo").value.trim(),
+          descricao: document.getElementById("af-descricao").value.trim(),
+          vendedor_id: Number(document.getElementById("af-vendedor").value) || null,
+          status: document.getElementById("af-status").value,
+        };
+
+        if (editando) {
+          await API.atualizarAgenda(item.id, dados);
+        } else {
+          await API.criarAgenda(dados);
+        }
+
+        fecharModal();
+        await carregarAgenda();
+      });
+    }
+
+    document.getElementById("btn-novo-agendamento").addEventListener("click", () => abrirFormularioAgenda(null));
+    document.getElementById("filtro-vendedor").addEventListener("change", renderizarAgenda);
+
+    document.getElementById("lista-agenda").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-acao]");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.id);
+      const item = agendaCache.find((i) => i.id === id);
+      if (!item) return;
+
+      if (btn.dataset.acao === "editar") {
+        abrirFormularioAgenda(item);
+      } else if (btn.dataset.acao === "excluir") {
+        if (confirm(`Deseja realmente excluir "${item.titulo}"?`)) {
+          await API.excluirAgenda(id);
+          await carregarAgenda();
+        }
+      }
+    });
+
+    (async () => {
+      await carregarFiltroVendedores();
+      await carregarAgenda();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Configurações</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <p class="breadcrumb">Administração / <strong>Configurações</strong></p>
+          <h1>Configurações</h1>
+          <p>Configurações gerais do sistema</p>
+        </div>
+      </div>
+
+      <!-- DADOS DA EMPRESA -->
+      <form class="panel" style="margin-bottom: 20px;">
+        <div class="panel__title">Dados da Empresa</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="empresa-nome">Nome da Empresa</label>
+            <input type="text" id="empresa-nome" value="Avelloz Motos" />
+          </div>
+          <div class="field">
+            <label for="empresa-cnpj">CNPJ</label>
+            <input type="text" id="empresa-cnpj" placeholder="00.000.000/0001-00" />
+          </div>
+          <div class="field">
+            <label for="empresa-email">E-mail de Contato</label>
+            <input type="email" id="empresa-email" placeholder="contato@avelloz.com" />
+          </div>
+          <div class="field">
+            <label for="empresa-telefone">Telefone</label>
+            <input type="text" id="empresa-telefone" placeholder="(11) 4000-0000" />
+          </div>
+          <div class="field full">
+            <label for="empresa-endereco">Endereço</label>
+            <input type="text" id="empresa-endereco" placeholder="Rua, número, bairro, cidade - UF" />
+          </div>
+        </div>
+      </form>
+
+      <!-- MOEDA E REGIÃO -->
+      <form class="panel" style="margin-bottom: 20px;">
+        <div class="panel__title">Moeda e Região</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="moeda">Moeda</label>
+            <select id="moeda">
+              <option>Real (R$)</option>
+              <option>Dólar (US$)</option>
+              <option>Euro (€)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fuso">Fuso Horário</label>
+            <select id="fuso">
+              <option>(GMT-03:00) Brasília</option>
+              <option>(GMT-04:00) Manaus</option>
+              <option>(GMT-05:00) Acre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="data">Formato de Data</label>
+            <select id="data">
+              <option>DD/MM/AAAA</option>
+              <option>MM/DD/AAAA</option>
+              <option>AAAA-MM-DD</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="idioma">Idioma</label>
+            <select id="idioma">
+              <option>Português (Brasil)</option>
+              <option>English (US)</option>
+              <option>Español</option>
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <!-- PREFERÊNCIAS DO SISTEMA -->
+      <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel__title">Preferências do Sistema</div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row__label">Notificações por e-mail</div>
+            <div class="toggle-row__desc">Receber resumo diário de vendas e metas por e-mail</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked /><span class="toggle__slider"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row__label">Notificações push</div>
+            <div class="toggle-row__desc">Alertas em tempo real de novas vendas e agendamentos</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked /><span class="toggle__slider"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row__label">Backup automático diário</div>
+            <div class="toggle-row__desc">Realiza backup dos dados todos os dias às 02h00</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked /><span class="toggle__slider"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row__label">Tema escuro</div>
+            <div class="toggle-row__desc">Disponível em breve</div>
+          </div>
+          <label class="toggle"><input type="checkbox" disabled /><span class="toggle__slider"></span></label>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn--ghost">Cancelar</button>
+        <button type="button" class="btn btn--primary">Salvar Alterações</button>
+      </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

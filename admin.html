@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Cadastrar Vendedor</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <p class="breadcrumb">Administração / <strong>Cadastrar Vendedor</strong></p>
+          <h1>Cadastrar Vendedor</h1>
+          <p>Cadastro e gerenciamento de vendedores</p>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO DE CADASTRO -->
+      <form class="panel" id="form-vendedor" style="margin-bottom: 24px;">
+        <div class="panel__title">Cadastrar Novo Vendedor</div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="v-nome">Nome Completo</label>
+            <input type="text" id="v-nome" placeholder="Ex: Carlos Mendes" required />
+          </div>
+          <div class="field">
+            <label for="v-email">E-mail</label>
+            <input type="email" id="v-email" placeholder="vendedor@avelloz.com" required />
+          </div>
+          <div class="field">
+            <label for="v-telefone">Telefone</label>
+            <input type="text" id="v-telefone" placeholder="(11) 99999-0000" />
+          </div>
+          <div class="field">
+            <label for="v-meta">Meta Mensal (R$)</label>
+            <input type="number" id="v-meta" placeholder="Ex: 60000" />
+          </div>
+          <div class="field">
+            <label for="v-comissao">Comissão (%)</label>
+            <input type="number" step="0.1" id="v-comissao" placeholder="Ex: 3" />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="reset" class="btn btn--ghost">Limpar</button>
+          <button type="submit" class="btn btn--primary">Cadastrar Vendedor</button>
+        </div>
+      </form>
+
+      <!-- LISTA DE VENDEDORES -->
+      <div class="page-header">
+        <div>
+          <h1 style="font-size: 18px;">Vendedores Cadastrados</h1>
+          <p>Gerencie os vendedores ativos no sistema</p>
+        </div>
+      </div>
+
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Telefone</th>
+              <th>Meta Mensal</th>
+              <th>Comissão</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-vendedores">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const tbody = document.getElementById("lista-vendedores");
+    const form = document.getElementById("form-vendedor");
+    const botaoSalvar = form.querySelector("button[type='submit']");
+    let editandoId = null;
+
+    async function renderizarVendedores() {
+      const vendedores = await API.listarVendedores();
+      tbody.innerHTML = "";
+
+      vendedores.forEach((v) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${v.nome}</td>
+          <td>${v.email}</td>
+          <td>${v.telefone || "-"}</td>
+          <td>${formatarMoeda(v.meta || 0)}</td>
+          <td>${v.comissao || 0}%</td>
+          <td>
+            <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${v.id}">✏️</button>
+            <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${v.id}">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      substituirIcones();
+    }
+
+    function sairDoModoEdicao() {
+      editandoId = null;
+      botaoSalvar.textContent = "Cadastrar Vendedor";
+    }
+
+    form.addEventListener("reset", sairDoModoEdicao);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const dados = {
+        nome: document.getElementById("v-nome").value.trim(),
+        email: document.getElementById("v-email").value.trim(),
+        telefone: document.getElementById("v-telefone").value.trim(),
+        meta: Number(document.getElementById("v-meta").value) || 0,
+        comissao: Number(document.getElementById("v-comissao").value) || 0,
+      };
+
+      if (editandoId) {
+        await API.atualizarVendedor(editandoId, dados);
+      } else {
+        await API.criarVendedor(dados);
+      }
+
+      sairDoModoEdicao();
+      form.reset();
+      await renderizarVendedores();
+    });
+
+    tbody.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.id);
+
+      if (btn.dataset.acao === "excluir") {
+        if (confirm("Deseja realmente excluir este vendedor?")) {
+          await API.excluirVendedor(id);
+          await renderizarVendedores();
+        }
+      }
+
+      if (btn.dataset.acao === "editar") {
+        const vendedores = await API.listarVendedores();
+        const vendedor = vendedores.find((v) => v.id === id);
+        if (!vendedor) return;
+
+        document.getElementById("v-nome").value = vendedor.nome;
+        document.getElementById("v-email").value = vendedor.email;
+        document.getElementById("v-telefone").value = vendedor.telefone || "";
+        document.getElementById("v-meta").value = vendedor.meta;
+        document.getElementById("v-comissao").value = vendedor.comissao;
+
+        editandoId = id;
+        botaoSalvar.textContent = "Salvar Alterações";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    renderizarVendedores();
+  </script>
+</body>
+</html>

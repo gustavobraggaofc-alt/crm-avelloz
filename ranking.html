@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Ranking de Vendedores</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Ranking de Vendedores</h1>
+          <p>Acompanhe o desempenho da equipe de vendas</p>
+        </div>
+        <div class="toolbar">
+          <select>
+            <option>Este mês</option>
+            <option>Mês passado</option>
+            <option>Trimestre</option>
+            <option>Este ano</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- PÓDIO TOP 3 -->
+      <section class="podio" id="podio">
+        <!-- preenchido via JS -->
+      </section>
+
+      <!-- TABELA COMPLETA -->
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pos.</th>
+              <th>Vendedor</th>
+              <th>Vendas</th>
+              <th>Valor Total</th>
+              <th>Meta</th>
+              <th>% Atingido</th>
+            </tr>
+          </thead>
+          <tbody id="lista-ranking">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    async function renderizarRanking() {
+      const ranking = await API.obterRanking();
+
+      const podio = document.getElementById("podio");
+      const top3 = ranking.slice(0, 3);
+      const medalhas = ["🥇", "🥈", "🥉"];
+      const ordemExibicao = [1, 0, 2]; // 2º, 1º, 3º
+
+      podio.innerHTML = ordemExibicao
+        .map((i) => {
+          const v = top3[i];
+          if (!v) return "";
+          const classeCard = i === 0 ? "podio__card is-first" : "podio__card";
+          return `
+            <div class="${classeCard}">
+              <div class="podio__medal">${medalhas[i]}</div>
+              <div class="podio__name">${v.nome}</div>
+              <div class="podio__value">${formatarMoeda(v.vendas_mes)}</div>
+              <div class="podio__sub">${v.motos_vendidas} motos vendidas</div>
+            </div>
+          `;
+        })
+        .join("");
+
+      const classePos = ["gold", "silver", "bronze"];
+      const tbody = document.getElementById("lista-ranking");
+      tbody.innerHTML = ranking
+        .map((v, i) => {
+          const classe = classePos[i] || "";
+          const larguraBarra = Math.min(v.percentual, 100);
+          return `
+            <tr>
+              <td><span class="mini-ranking__pos ${classe}" style="width:24px;height:24px;font-size:12px;">${v.posicao}</span></td>
+              <td>${v.nome}</td>
+              <td>${v.motos_vendidas}</td>
+              <td>${formatarMoeda(v.vendas_mes)}</td>
+              <td>${formatarMoeda(v.meta)}</td>
+              <td>
+                <div class="progress" style="width:120px; display:inline-block; vertical-align:middle; margin-right:8px;">
+                  <div class="progress__bar" style="width: ${larguraBarra}%;"></div>
+                </div>
+                ${v.percentual}%
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    renderizarRanking();
+  </script>
+</body>
+</html>

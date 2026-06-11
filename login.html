@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM Avelloz - Entrar</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="header__logo">A</div>
+      <h1>CRM Avelloz</h1>
+      <p>Sistema de Vendas - faça login para continuar</p>
+
+      <form>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" placeholder="seu@avelloz.com" required />
+        </div>
+        <div class="field">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn--primary">Entrar</button>
+      </form>
+
+      <div class="login-card__footer">
+        © 2026 Avelloz Motos · <a href="index.html" style="color: var(--azul-primario);">Voltar ao sistema</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+  <script>
+    document.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>
