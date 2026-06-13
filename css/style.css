@@ -1433,32 +1433,52 @@ tbody tr:hover {
 }
 
 @media (max-width: 768px) {
+  /* ---- Layout: desliga o grid de 2 colunas ---- */
   .app {
-    grid-template-areas:
-      "header"
-      "main"
-      "footer";
-    grid-template-columns: 1fr;
-    grid-template-rows: var(--header-altura) 1fr var(--footer-altura);
-    overflow-x: hidden;
-  }
-
-  .main {
-    padding: 16px;
-    overflow-x: hidden;
-    max-width: 100vw;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100vh;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
   }
 
   .header {
+    flex-shrink: 0;
+    height: var(--header-altura);
     padding: 0 12px;
     gap: 8px;
+    width: 100%;
   }
 
-  .header__menu-btn {
+  .main {
+    flex: 1;
+    padding: 16px;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  .footer {
+    flex-shrink: 0;
+    height: auto;
+    min-height: var(--footer-altura);
+    width: 100%;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    padding: 8px 12px;
+  }
+
+  /* ---- Botão hamburger: SEMPRE visível no mobile ---- */
+  .header__menu-btn,
+  .header__menu-btn.header__icon-btn {
     display: flex !important;
   }
 
-  .header__search {
+  /* ---- Esconde busca e detalhes do header ---- */
+  .header__search,
+  label.header__search {
     display: none !important;
   }
 
@@ -1470,23 +1490,25 @@ tbody tr:hover {
     display: none;
   }
 
-  /* ---- Gaveta lateral (sidebar) ---- */
+  /* ---- Sidebar: gaveta lateral fixa, fora do fluxo ---- */
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 260px;
-    max-width: 80vw;
-    z-index: 1001;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 260px !important;
+    max-width: 80vw !important;
+    z-index: 1001 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease !important;
     box-shadow: var(--sombra-lg);
-    background: var(--fundo);
+    background: var(--fundo) !important;
+    overflow-y: auto;
+    border-right: none;
   }
 
   .sidebar.is-open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
   }
 
   .sidebar-backdrop {
@@ -1501,12 +1523,20 @@ tbody tr:hover {
     display: block;
   }
 
-  .cards-grid { grid-template-columns: 1fr; }
-  .reports-grid { grid-template-columns: 1fr; }
+  /* ---- Cards empilhados ---- */
+  .cards-grid { grid-template-columns: 1fr !important; }
+  .reports-grid { grid-template-columns: 1fr !important; }
 
-  /* ---- Tabelas com rolagem horizontal ---- */
+  /* ---- Page header empilhado ---- */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* ---- Tabelas com rolagem horizontal contida ---- */
   .table-wrap {
     max-width: calc(100vw - 32px);
+    overflow-x: auto;
   }
 
   .table-wrap table {
@@ -1528,7 +1558,7 @@ tbody tr:hover {
   .field textarea,
   .toolbar input,
   .toolbar select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 
   /* ---- Botões de ícone maiores para toque ---- */
@@ -1543,18 +1573,15 @@ tbody tr:hover {
     gap: 8px;
   }
 
-  /* ---- Page header empilhado ---- */
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  /* ---- Footer empilhado ---- */
-  .footer {
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
-    padding: 8px 12px;
+  /* ---- Painéis não estourem ---- */
+  .panel,
+  .card,
+  .form-grid,
+  .resultado-grid,
+  .content-grid,
+  .toolbar {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 
