@@ -1,0 +1,19 @@
+{
+  "name": "CRM Avelloz - Sistema de Vendas",
+  "short_name": "Avelloz CRM",
+  "description": "Sistema de gestão de vendas da Avelloz Motos",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6FA",
+  "theme_color": "#1452A3",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

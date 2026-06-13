@@ -42,16 +42,21 @@
   padding: 0;
   box-sizing: border-box;
   font-family: "Plus Jakarta Sans", "Segoe UI", "Inter", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 body {
   background: var(--fundo-app);
   color: var(--texto-escuro);
+  overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* ---- Ícones (SVG injetados via JS) ---- */
@@ -126,6 +131,8 @@ textarea:focus-visible {
   grid-template-rows: var(--header-altura) 1fr var(--footer-altura);
   grid-template-columns: var(--sidebar-largura) 1fr;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* =========================================================
@@ -266,6 +273,11 @@ textarea:focus-visible {
 
 .header__chevron {
   opacity: 0.7;
+}
+
+/* ---- Botão do menu mobile (gaveta lateral) ---- */
+.header__menu-btn.header__icon-btn {
+  display: none;
 }
 
 /* =========================================================
@@ -710,7 +722,9 @@ textarea:focus-visible {
   background: var(--fundo);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--sombra-sm);
 }
 
@@ -1421,12 +1435,221 @@ tbody tr:hover {
 @media (max-width: 768px) {
   .app {
     grid-template-areas:
-      "header header"
-      "main main"
-      "footer footer";
+      "header"
+      "main"
+      "footer";
     grid-template-columns: 1fr;
+    grid-template-rows: var(--header-altura) 1fr var(--footer-altura);
+    overflow-x: hidden;
   }
-  .sidebar { display: none; }
+
+  .main {
+    padding: 16px;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .header {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .header__menu-btn {
+    display: flex !important;
+  }
+
+  .header__search {
+    display: none !important;
+  }
+
+  .header__user span {
+    display: none;
+  }
+
+  .header__chevron {
+    display: none;
+  }
+
+  /* ---- Gaveta lateral (sidebar) ---- */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 80vw;
+    z-index: 1001;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: var(--sombra-lg);
+    background: var(--fundo);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 1000;
+  }
+
+  .sidebar-backdrop.is-open {
+    display: block;
+  }
+
   .cards-grid { grid-template-columns: 1fr; }
   .reports-grid { grid-template-columns: 1fr; }
+
+  /* ---- Tabelas com rolagem horizontal ---- */
+  .table-wrap {
+    max-width: calc(100vw - 32px);
+  }
+
+  .table-wrap table {
+    min-width: 640px;
+  }
+
+  /* ---- Agenda ---- */
+  .agenda-item {
+    flex-wrap: wrap;
+  }
+
+  .agenda-item__actions {
+    margin-left: auto;
+  }
+
+  /* ---- Evita zoom automático ao focar campos no iOS ---- */
+  .field input,
+  .field select,
+  .field textarea,
+  .toolbar input,
+  .toolbar select {
+    font-size: 16px;
+  }
+
+  /* ---- Botões de ícone maiores para toque ---- */
+  .btn--icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* ---- Gráfico mais compacto ---- */
+  .chart-bars {
+    height: 160px;
+    gap: 8px;
+  }
+
+  /* ---- Page header empilhado ---- */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* ---- Footer empilhado ---- */
+  .footer {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header__title {
+    font-size: 15px;
+  }
+
+  .header__title small {
+    display: none;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  /* ---- Toolbar ---- */
+  .page-header .toolbar {
+    width: 100%;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar select,
+  .toolbar input {
+    width: 100%;
+  }
+
+  /* ---- Formulários ---- */
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  /* ---- Modal ---- */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal__header {
+    padding: 14px 16px;
+  }
+
+  .modal__body {
+    padding: 16px;
+  }
+
+  .detalhe-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- Login ---- */
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 24px;
+  }
+
+  /* ---- Rodapé ---- */
+  .footer {
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  /* ---- Cards mais compactos ---- */
+  .cards-grid {
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .card--kpi .value {
+    font-size: 24px;
+  }
+
+  /* ---- Pódio mais compacto ---- */
+  .podio__card {
+    padding: 18px 12px;
+  }
+
+  .podio__card.is-first {
+    transform: none;
+  }
+
+  .podio__card.is-first:hover {
+    transform: translateY(-4px);
+  }
 }

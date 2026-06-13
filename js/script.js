@@ -47,6 +47,7 @@ const ICONS = {
   "edit-2": `<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>`,
   "trash-2": `<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>`,
   eye: `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
+  menu: `<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>`,
 };
 
 function svgIcone(nome, tamanho = 18) {
@@ -152,6 +153,100 @@ function renderizarMenu() {
     cabecalho.addEventListener("click", () => {
       grupo.classList.toggle("open");
       submenu.classList.toggle("open");
+    });
+  }
+}
+
+// =========================================================
+// MENU MOBILE (gaveta lateral em telas pequenas)
+// =========================================================
+
+function configurarMenuMobile() {
+  const header = document.querySelector(".header");
+  const brand = document.querySelector(".header__brand");
+  const sidebar = document.getElementById("sidebar");
+  if (!header || !brand || !sidebar) return;
+  if (document.querySelector(".header__menu-btn")) return;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "header__menu-btn header__icon-btn";
+  btn.title = "Abrir menu";
+  btn.setAttribute("aria-label", "Abrir menu");
+  btn.innerHTML = svgIcone("menu", 20);
+  brand.prepend(btn);
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "sidebar-backdrop";
+  document.body.appendChild(backdrop);
+
+  function abrirMenu() {
+    sidebar.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function fecharMenu() {
+    sidebar.classList.remove("is-open");
+    backdrop.classList.remove("is-open");
+    document.body.style.overflow = "";
+  }
+
+  btn.addEventListener("click", () => {
+    sidebar.classList.contains("is-open") ? fecharMenu() : abrirMenu();
+  });
+
+  backdrop.addEventListener("click", fecharMenu);
+
+  sidebar.addEventListener("click", (e) => {
+    if (e.target.closest("a.menu-item")) fecharMenu();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") fecharMenu();
+  });
+}
+
+// =========================================================
+// PWA - manifesto, ícone e service worker (experiência de app)
+// =========================================================
+
+function configurarPWA() {
+  const head = document.head;
+
+  if (!document.querySelector("link[rel='manifest']")) {
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "manifest.json";
+    head.appendChild(link);
+  }
+
+  if (!document.querySelector("link[rel='apple-touch-icon']")) {
+    const link = document.createElement("link");
+    link.rel = "apple-touch-icon";
+    link.href = "icon.svg";
+    head.appendChild(link);
+  }
+
+  const metas = {
+    "theme-color": "#1452A3",
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "Avelloz CRM",
+  };
+
+  Object.entries(metas).forEach(([nome, conteudo]) => {
+    if (document.querySelector(`meta[name='${nome}']`)) return;
+    const meta = document.createElement("meta");
+    meta.name = nome;
+    meta.content = conteudo;
+    head.appendChild(meta);
+  });
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
     });
   }
 }
@@ -296,7 +391,9 @@ function substituirIcones() {
 
 document.addEventListener("DOMContentLoaded", () => {
   injetarFavicon();
+  configurarPWA();
   renderizarMenu();
   aprimorarHeader();
+  configurarMenuMobile();
   substituirIcones();
 });
