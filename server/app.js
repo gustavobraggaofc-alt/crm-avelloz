@@ -523,6 +523,34 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     .limit(5);
   if (errUltimas) throw errUltimas;
 
+  const { data: todasVendas, error: errTodasVendas } = await supabase
+    .from("vendas")
+    .select("valor, data, status");
+  if (errTodasVendas) throw errTodasVendas;
+
+  const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const agora = new Date();
+  const buckets = [];
+  for (let i = 5; i >= 0; i--) {
+    const ref = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    buckets.push({
+      chave: `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`,
+      label: MESES_ABREV[ref.getMonth()],
+      valor: 0,
+    });
+  }
+
+  for (const venda of todasVendas) {
+    if (venda.status === "Cancelada") continue;
+    const partes = String(venda.data || "").split("/");
+    if (partes.length !== 3) continue;
+    const [, mm, yyyy] = partes;
+    const bucket = buckets.find((b) => b.chave === `${yyyy}-${mm}`);
+    if (bucket) bucket.valor += venda.valor || 0;
+  }
+
+  const vendasPorMes = buckets.map(({ label, valor }) => ({ label, valor }));
+
   res.json({
     vendasHoje: vendasHoje || 0,
     vendasOntem: vendasOntem || 0,
@@ -532,6 +560,7 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     percentualMeta: totais.meta > 0 ? Math.round((totais.faturamento / totais.meta) * 100) : 0,
     topVendedores,
     ultimasVendas: comVendedorNome(ultimasVendasRaw),
+    vendasPorMes,
   });
 }));
 

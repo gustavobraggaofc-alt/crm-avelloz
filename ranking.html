@@ -84,6 +84,14 @@
       const ranking = await API.obterRanking();
 
       const podio = document.getElementById("podio");
+      const tbody = document.getElementById("lista-ranking");
+
+      if (ranking.length === 0) {
+        podio.innerHTML = `<p class="nota" style="grid-column: 1 / -1;">Nenhum vendedor cadastrado.</p>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="nota">Nenhum vendedor cadastrado.</td></tr>`;
+        return;
+      }
+
       const top3 = ranking.slice(0, 3);
       const medalhas = ["🥇", "🥈", "🥉"];
       const ordemExibicao = [1, 0, 2]; // 2º, 1º, 3º
@@ -105,7 +113,6 @@
         .join("");
 
       const classePos = ["gold", "silver", "bronze"];
-      const tbody = document.getElementById("lista-ranking");
       tbody.innerHTML = ranking
         .map((v, i) => {
           const classe = classePos[i] || "";

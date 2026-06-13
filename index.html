@@ -85,31 +85,8 @@
             Vendas por mês
             <span class="tag">Últimos 6 meses</span>
           </div>
-          <div class="chart-bars">
-            <div class="bar-wrap">
-              <div class="bar" style="height: 55%;" data-valor="R$ 66k"></div>
-              <span class="bar-label">Jan</span>
-            </div>
-            <div class="bar-wrap">
-              <div class="bar" style="height: 70%;" data-valor="R$ 84k"></div>
-              <span class="bar-label">Fev</span>
-            </div>
-            <div class="bar-wrap">
-              <div class="bar" style="height: 45%;" data-valor="R$ 54k"></div>
-              <span class="bar-label">Mar</span>
-            </div>
-            <div class="bar-wrap">
-              <div class="bar" style="height: 80%;" data-valor="R$ 96k"></div>
-              <span class="bar-label">Abr</span>
-            </div>
-            <div class="bar-wrap">
-              <div class="bar" style="height: 65%;" data-valor="R$ 78k"></div>
-              <span class="bar-label">Mai</span>
-            </div>
-            <div class="bar-wrap">
-              <div class="bar" style="height: 95%;" data-valor="R$ 114k"></div>
-              <span class="bar-label">Jun</span>
-            </div>
+          <div class="chart-bars" id="chart-vendas-mes">
+            <!-- preenchido via JS -->
           </div>
         </div>
 
@@ -185,20 +162,38 @@
       document.getElementById("kpi-meta-mes").textContent = `${dados.percentualMeta}%`;
       document.getElementById("kpi-meta-mes-bar").style.width = `${Math.min(dados.percentualMeta, 100)}%`;
 
+      const chartVendasMes = document.getElementById("chart-vendas-mes");
+      const maiorValor = Math.max(1, ...dados.vendasPorMes.map((m) => m.valor));
+      chartVendasMes.innerHTML = dados.vendasPorMes
+        .map((m) => {
+          const altura = m.valor > 0 ? Math.max(2, Math.round((m.valor / maiorValor) * 100)) : 0;
+          return `
+            <div class="bar-wrap">
+              <div class="bar" style="height: ${altura}%;" data-valor="${formatarMoeda(m.valor)}"></div>
+              <span class="bar-label">${m.label}</span>
+            </div>
+          `;
+        })
+        .join("");
+
       const classePos = ["gold", "silver", "bronze"];
       const miniRanking = document.getElementById("mini-ranking");
-      miniRanking.innerHTML = dados.topVendedores
-        .map((v, i) => `
-          <div class="mini-ranking__item">
-            <div class="mini-ranking__pos ${classePos[i] || ""}">${i + 1}</div>
-            <div class="mini-ranking__info">
-              <div class="mini-ranking__name">${v.nome}</div>
-              <div class="mini-ranking__sub">${v.motos_vendidas} motos vendidas</div>
+      if (dados.topVendedores.length === 0) {
+        miniRanking.innerHTML = `<p class="nota">Nenhuma venda registrada neste mês.</p>`;
+      } else {
+        miniRanking.innerHTML = dados.topVendedores
+          .map((v, i) => `
+            <div class="mini-ranking__item">
+              <div class="mini-ranking__pos ${classePos[i] || ""}">${i + 1}</div>
+              <div class="mini-ranking__info">
+                <div class="mini-ranking__name">${v.nome}</div>
+                <div class="mini-ranking__sub">${v.motos_vendidas} motos vendidas</div>
+              </div>
+              <div class="mini-ranking__value">${formatarMoeda(v.vendas_mes)}</div>
             </div>
-            <div class="mini-ranking__value">${formatarMoeda(v.vendas_mes)}</div>
-          </div>
-        `)
-        .join("");
+          `)
+          .join("");
+      }
 
       const tbody = document.getElementById("lista-ultimas-vendas");
       tbody.innerHTML = dados.ultimasVendas
