@@ -2,7 +2,7 @@
 // CRM AVELLOZ - Service Worker (experiência de app instalável)
 // =========================================================
 
-const CACHE_NAME = "avelloz-crm-v1";
+const CACHE_NAME = "avelloz-crm-v2";
 const STATIC_ASSETS = [
   "css/style.css",
   "js/script.js",
@@ -32,9 +32,15 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || request.url.includes("/api/")) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).catch(() => cached);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      const atualizado = fetch(request)
+        .then((resposta) => {
+          cache.put(request, resposta.clone());
+          return resposta;
+        })
+        .catch(() => cached);
+      return cached || atualizado;
     })
   );
 });
