@@ -14,6 +14,7 @@ const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 const COOKIE_AUTH = "crm_token";
 
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..")));
@@ -112,7 +113,7 @@ app.post("/api/login", wrap(async (req, res) => {
   res.cookie(COOKIE_AUTH, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: req.secure,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
