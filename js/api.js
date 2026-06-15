@@ -5,7 +5,7 @@
 const API_BASE = "/api";
 
 async function apiRequest(metodo, caminho, corpo) {
-  const opcoes = { method: metodo, headers: {} };
+  const opcoes = { method: metodo, headers: {}, credentials: "same-origin" };
 
   if (corpo !== undefined) {
     opcoes.headers["Content-Type"] = "application/json";
@@ -13,6 +13,14 @@ async function apiRequest(metodo, caminho, corpo) {
   }
 
   const resposta = await fetch(`${API_BASE}${caminho}`, opcoes);
+
+  if (resposta.status === 401 && caminho !== "/login") {
+    const pagina = window.location.pathname.split("/").pop() || "index.html";
+    if (pagina !== "login.html") {
+      window.location.href = "login.html";
+      return new Promise(() => {});
+    }
+  }
 
   if (!resposta.ok) {
     const erro = await resposta.json().catch(() => ({}));
@@ -24,6 +32,11 @@ async function apiRequest(metodo, caminho, corpo) {
 }
 
 const API = {
+  // Autenticação
+  login: (dados) => apiRequest("POST", "/login", dados),
+  logout: () => apiRequest("POST", "/logout"),
+  obterSessao: () => apiRequest("GET", "/me"),
+
   // Vendedores
   listarVendedores: () => apiRequest("GET", "/vendedores"),
   criarVendedor: (dados) => apiRequest("POST", "/vendedores", dados),

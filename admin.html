@@ -55,6 +55,10 @@
             <input type="text" id="v-telefone" placeholder="(11) 99999-0000" />
           </div>
           <div class="field">
+            <label for="v-senha">Senha de Acesso</label>
+            <input type="password" id="v-senha" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div class="field">
             <label for="v-meta">Meta Mensal (R$)</label>
             <input type="number" id="v-meta" placeholder="Ex: 60000" />
           </div>
@@ -63,6 +67,7 @@
             <input type="number" step="0.1" id="v-comissao" placeholder="Ex: 3" />
           </div>
         </div>
+        <p class="nota" id="v-senha-nota" hidden>Deixe em branco para manter a senha atual.</p>
 
         <div class="form-actions">
           <button type="reset" class="btn btn--ghost">Limpar</button>
@@ -111,6 +116,8 @@
     const tbody = document.getElementById("lista-vendedores");
     const form = document.getElementById("form-vendedor");
     const botaoSalvar = form.querySelector("button[type='submit']");
+    const campoSenha = document.getElementById("v-senha");
+    const notaSenha = document.getElementById("v-senha-nota");
     let editandoId = null;
 
     async function renderizarVendedores() {
@@ -139,6 +146,8 @@
     function sairDoModoEdicao() {
       editandoId = null;
       botaoSalvar.textContent = "Cadastrar Vendedor";
+      campoSenha.placeholder = "Mínimo 6 caracteres";
+      notaSenha.hidden = true;
     }
 
     form.addEventListener("reset", sairDoModoEdicao);
@@ -153,6 +162,9 @@
         meta: Number(document.getElementById("v-meta").value) || 0,
         comissao: Number(document.getElementById("v-comissao").value) || 0,
       };
+
+      const senha = campoSenha.value;
+      if (senha) dados.senha = senha;
 
       try {
         if (editandoId) {
@@ -198,6 +210,9 @@
         document.getElementById("v-telefone").value = vendedor.telefone || "";
         document.getElementById("v-meta").value = vendedor.meta;
         document.getElementById("v-comissao").value = vendedor.comissao;
+        campoSenha.value = "";
+        campoSenha.placeholder = "••••••••";
+        notaSenha.hidden = false;
 
         editandoId = id;
         botaoSalvar.textContent = "Salvar Alterações";

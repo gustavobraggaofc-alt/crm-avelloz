@@ -4,11 +4,18 @@
 
 const path = require("path");
 const express = require("express");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const supabase = require("./supabaseClient");
 
 const app = express();
 
+const JWT_SECRET = process.env.JWT_SECRET;
+const COOKIE_AUTH = "crm_token";
+
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..")));
 
 // ---------------------------------------------------------
@@ -45,6 +52,92 @@ function comVendedorNome(linhas) {
   });
 }
 
+class ErroValidacao extends Error {
+  constructor(mensagem) {
+    super(mensagem);
+    this.status = 400;
+  }
+}
+
+// Valida/converte um campo numérico. Se `valor` não for informado, usa `padrao`
+// (se `padrao` for omitido, o campo é obrigatório). Lança ErroValidacao (400)
+// para valores não numéricos ou fora do intervalo [min, max].
+function validarNumero(valor, { campo, min = -Infinity, max = Infinity, padrao, feminino = false } = {}) {
+  if (valor === undefined || valor === null || valor === "") {
+    if (padrao !== undefined) return padrao;
+    throw new ErroValidacao(`${campo} é obrigatório`);
+  }
+  const n = Number(valor);
+  if (!Number.isFinite(n) || n < min || n > max) {
+    throw new ErroValidacao(`${campo} inválid${feminino ? "a" : "o"}`);
+  }
+  return n;
+}
+
+// Remove o hash de senha antes de devolver dados de vendedor ao cliente.
+function semSenha(vendedor) {
+  if (!vendedor) return vendedor;
+  const { senha_hash, ...resto } = vendedor;
+  return resto;
+}
+
+function semSenhaLista(vendedores) {
+  return vendedores.map(semSenha);
+}
+
+// ---------------------------------------------------------
+// AUTENTICAÇÃO
+// ---------------------------------------------------------
+
+app.post("/api/login", wrap(async (req, res) => {
+  const { email, senha } = req.body;
+  if (!email || !senha) return res.status(400).json({ erro: "E-mail e senha são obrigatórios" });
+
+  const { data: vendedor, error } = await supabase
+    .from("vendedores")
+    .select("*")
+    .ilike("email", email)
+    .maybeSingle();
+  if (error) throw error;
+
+  const senhaOk = vendedor?.senha_hash && bcrypt.compareSync(senha, vendedor.senha_hash);
+  if (!senhaOk) return res.status(401).json({ erro: "E-mail ou senha inválidos" });
+
+  const token = jwt.sign(
+    { id: vendedor.id, nome: vendedor.nome, email: vendedor.email, role: vendedor.role },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.cookie(COOKIE_AUTH, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.json(semSenha(vendedor));
+}));
+
+app.post("/api/logout", (req, res) => {
+  res.clearCookie(COOKIE_AUTH);
+  res.json({ ok: true });
+});
+
+// A partir daqui, todas as rotas /api/* exigem sessão válida.
+app.use("/api", (req, res, next) => {
+  const token = req.cookies?.[COOKIE_AUTH];
+  if (!token) return res.status(401).json({ erro: "Não autenticado" });
+  try {
+    req.usuario = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ erro: "Sessão inválida ou expirada" });
+  }
+});
+
+app.get("/api/me", (req, res) => res.json(req.usuario));
+
 // ---------------------------------------------------------
 // VENDEDORES
 // ---------------------------------------------------------
@@ -52,19 +145,23 @@ function comVendedorNome(linhas) {
 app.get("/api/vendedores", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").order("nome");
   if (error) throw error;
-  res.json(data);
+  res.json(semSenhaLista(data));
 }));
 
 app.get("/api/vendedores/:id", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").eq("id", req.params.id).maybeSingle();
   if (error) throw error;
   if (!data) return res.status(404).json({ erro: "Vendedor não encontrado" });
-  res.json(data);
+  res.json(semSenha(data));
 }));
 
 app.post("/api/vendedores", wrap(async (req, res) => {
-  const { nome, email, telefone, meta, comissao } = req.body;
-  if (!nome || !email) return res.status(400).json({ erro: "Nome e e-mail são obrigatórios" });
+  const { nome, email, telefone, meta, comissao, senha, role } = req.body;
+  if (!nome || !email || !senha) return res.status(400).json({ erro: "Nome, e-mail e senha são obrigatórios" });
+  if (senha.length < 6) return res.status(400).json({ erro: "Senha deve ter pelo menos 6 caracteres" });
+
+  const metaValidada = validarNumero(meta, { campo: "Meta", min: 0, padrao: 0, feminino: true });
+  const comissaoValidada = validarNumero(comissao, { campo: "Comissão", min: 0, padrao: 0, feminino: true });
 
   const { data, error } = await supabase
     .from("vendedores")
@@ -72,14 +169,19 @@ app.post("/api/vendedores", wrap(async (req, res) => {
       nome,
       email,
       telefone: telefone || "",
-      meta: Number(meta) || 0,
-      comissao: Number(comissao) || 0,
+      meta: metaValidada,
+      comissao: comissaoValidada,
+      senha_hash: bcrypt.hashSync(senha, 10),
+      role: role === "admin" ? "admin" : "vendedor",
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23505") throw new ErroValidacao("Já existe um vendedor com esse e-mail");
+    throw error;
+  }
 
-  res.status(201).json(data);
+  res.status(201).json(semSenha(data));
 }));
 
 app.put("/api/vendedores/:id", wrap(async (req, res) => {
@@ -91,22 +193,32 @@ app.put("/api/vendedores/:id", wrap(async (req, res) => {
   if (errBusca) throw errBusca;
   if (!existente) return res.status(404).json({ erro: "Vendedor não encontrado" });
 
-  const { nome, email, telefone, meta, comissao } = req.body;
+  const { nome, email, telefone, meta, comissao, senha, role } = req.body;
+  if (senha && senha.length < 6) return res.status(400).json({ erro: "Senha deve ter pelo menos 6 caracteres" });
+
+  const metaValidada = validarNumero(meta, { campo: "Meta", min: 0, padrao: existente.meta, feminino: true });
+  const comissaoValidada = validarNumero(comissao, { campo: "Comissão", min: 0, padrao: existente.comissao, feminino: true });
+
   const { data, error } = await supabase
     .from("vendedores")
     .update({
       nome: nome ?? existente.nome,
       email: email ?? existente.email,
       telefone: telefone ?? existente.telefone,
-      meta: Number(meta ?? existente.meta) || 0,
-      comissao: Number(comissao ?? existente.comissao) || 0,
+      meta: metaValidada,
+      comissao: comissaoValidada,
+      senha_hash: senha ? bcrypt.hashSync(senha, 10) : existente.senha_hash,
+      role: role === "admin" || role === "vendedor" ? role : existente.role,
     })
     .eq("id", req.params.id)
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23505") throw new ErroValidacao("Já existe um vendedor com esse e-mail");
+    throw error;
+  }
 
-  res.json(data);
+  res.json(semSenha(data));
 }));
 
 app.delete("/api/vendedores/:id", wrap(async (req, res) => {
@@ -199,15 +311,19 @@ app.post("/api/motos", wrap(async (req, res) => {
   const { modelo, marca, ano, cor, valor, quantidade, status } = req.body;
   if (!modelo || !marca) return res.status(400).json({ erro: "Modelo e marca são obrigatórios" });
 
+  const anoValidado = validarNumero(ano, { campo: "Ano", min: 1900, max: 2100, padrao: null });
+  const valorValidado = validarNumero(valor, { campo: "Valor", min: 0, padrao: 0 });
+  const quantidadeValidada = validarNumero(quantidade, { campo: "Quantidade", min: 0, padrao: 0, feminino: true });
+
   const { data, error } = await supabase
     .from("motos")
     .insert({
       modelo,
       marca,
-      ano: Number(ano) || null,
+      ano: anoValidado,
       cor: cor || "",
-      valor: Number(valor) || 0,
-      quantidade: Number(quantidade) || 0,
+      valor: valorValidado,
+      quantidade: quantidadeValidada,
       status: status || "Disponível",
     })
     .select()
@@ -232,15 +348,19 @@ app.put("/api/motos/:id", wrap(async (req, res) => {
   if (!existente) return res.status(404).json({ erro: "Moto não encontrada" });
 
   const { modelo, marca, ano, cor, valor, quantidade, status } = req.body;
+  const anoValidado = validarNumero(ano, { campo: "Ano", min: 1900, max: 2100, padrao: existente.ano });
+  const valorValidado = validarNumero(valor, { campo: "Valor", min: 0, padrao: existente.valor });
+  const quantidadeValidada = validarNumero(quantidade, { campo: "Quantidade", min: 0, padrao: existente.quantidade, feminino: true });
+
   const { error } = await supabase
     .from("motos")
     .update({
       modelo: modelo ?? existente.modelo,
       marca: marca ?? existente.marca,
-      ano: Number(ano ?? existente.ano) || null,
+      ano: anoValidado,
       cor: cor ?? existente.cor,
-      valor: Number(valor ?? existente.valor) || 0,
-      quantidade: Number(quantidade ?? existente.quantidade) || 0,
+      valor: valorValidado,
+      quantidade: quantidadeValidada,
       status: status ?? existente.status,
     })
     .eq("id", req.params.id);
@@ -293,6 +413,24 @@ app.post("/api/vendas", wrap(async (req, res) => {
     return res.status(400).json({ erro: "Cliente e valor são obrigatórios" });
   }
 
+  const valorValidado = validarNumero(valor, { campo: "Valor", min: 0.01 });
+
+  let moto = null;
+  if (moto_id) {
+    const { data, error } = await supabase.from("motos").select("*").eq("id", moto_id).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new ErroValidacao("Moto não encontrada");
+    moto = data;
+  }
+
+  let vendedor = null;
+  if (vendedor_id) {
+    const { data, error } = await supabase.from("vendedores").select("*").eq("id", vendedor_id).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new ErroValidacao("Vendedor não encontrado");
+    vendedor = data;
+  }
+
   const hoje = dataHojeBR();
 
   let cliente = null;
@@ -334,36 +472,24 @@ app.post("/api/vendas", wrap(async (req, res) => {
     cliente = data;
   }
 
-  if (moto_id) {
-    const { data: moto, error: errMoto } = await supabase.from("motos").select("*").eq("id", moto_id).maybeSingle();
-    if (errMoto) throw errMoto;
-    if (moto) {
-      const { error: errUpdate } = await supabase
-        .from("motos")
-        .update({ quantidade: Math.max(moto.quantidade - 1, 0) })
-        .eq("id", moto_id);
-      if (errUpdate) throw errUpdate;
-      await recalcularStatusMoto(moto_id);
-    }
+  if (moto) {
+    const { error: errUpdate } = await supabase
+      .from("motos")
+      .update({ quantidade: Math.max(moto.quantidade - 1, 0) })
+      .eq("id", moto_id);
+    if (errUpdate) throw errUpdate;
+    await recalcularStatusMoto(moto_id);
   }
 
-  if (vendedor_id) {
-    const { data: vendedor, error: errVendedor } = await supabase
+  if (vendedor) {
+    const { error: errUpdate } = await supabase
       .from("vendedores")
-      .select("*")
-      .eq("id", vendedor_id)
-      .maybeSingle();
-    if (errVendedor) throw errVendedor;
-    if (vendedor) {
-      const { error: errUpdate } = await supabase
-        .from("vendedores")
-        .update({
-          vendas_mes: (vendedor.vendas_mes || 0) + (Number(valor) || 0),
-          motos_vendidas: (vendedor.motos_vendidas || 0) + 1,
-        })
-        .eq("id", vendedor_id);
-      if (errUpdate) throw errUpdate;
-    }
+      .update({
+        vendas_mes: (vendedor.vendas_mes || 0) + valorValidado,
+        motos_vendidas: (vendedor.motos_vendidas || 0) + 1,
+      })
+      .eq("id", vendedor_id);
+    if (errUpdate) throw errUpdate;
   }
 
   const { data: venda, error: errVenda } = await supabase
@@ -376,7 +502,7 @@ app.post("/api/vendas", wrap(async (req, res) => {
       vendedor_id: vendedor_id || null,
       moto_id: moto_id || null,
       moto_descricao: moto_descricao || "",
-      valor: Number(valor) || 0,
+      valor: valorValidado,
       forma_pagamento: forma_pagamento || "",
       observacoes: observacoes || "",
       status: status || "Concluída",
@@ -467,7 +593,7 @@ app.get("/api/ranking", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").order("vendas_mes", { ascending: false });
   if (error) throw error;
 
-  const ranking = data.map((v, i) => ({
+  const ranking = semSenhaLista(data).map((v, i) => ({
     ...v,
     posicao: i + 1,
     percentual: v.meta > 0 ? Math.round((v.vendas_mes / v.meta) * 100) : 0,
@@ -509,12 +635,13 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     { faturamento: 0, unidades: 0, meta: 0 }
   );
 
-  const { data: topVendedores, error: errTop } = await supabase
+  const { data: topVendedoresRaw, error: errTop } = await supabase
     .from("vendedores")
     .select("*")
     .order("vendas_mes", { ascending: false })
     .limit(4);
   if (errTop) throw errTop;
+  const topVendedores = semSenhaLista(topVendedoresRaw);
 
   const { data: ultimasVendasRaw, error: errUltimas } = await supabase
     .from("vendas")
@@ -631,7 +758,7 @@ app.post("/api/simulacoes/consorcio", wrap(async (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ erro: err.message || "Erro interno do servidor" });
+  res.status(err.status || 500).json({ erro: err.message || "Erro interno do servidor" });
 });
 
 module.exports = app;

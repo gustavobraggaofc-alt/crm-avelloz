@@ -1419,6 +1419,15 @@ tbody tr:hover {
   color: var(--texto-suave);
 }
 
+.login-erro {
+  background: #FEE2E2;
+  color: var(--perigo);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
 /* =========================================================
    RESPONSIVO
    ========================================================= */

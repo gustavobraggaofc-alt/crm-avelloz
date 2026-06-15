@@ -17,6 +17,15 @@ function parseMoeda(texto) {
   return Number(limpo) || 0;
 }
 
+// ---- Iniciais de um nome (para o avatar do header) ----
+function iniciais(nome) {
+  if (!nome) return "?";
+  const partes = nome.trim().split(/\s+/);
+  const primeira = partes[0]?.[0] || "";
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : "";
+  return (primeira + ultima).toUpperCase();
+}
+
 // =========================================================
 // ÍCONES SVG (estilo line-icon, desenhados à mão)
 // =========================================================
@@ -138,7 +147,7 @@ function renderizarMenu() {
 
   html += `
     <div class="sidebar__spacer"></div>
-    <a href="login.html" class="menu-item menu-item--sair">
+    <a href="#" id="link-sair" class="menu-item menu-item--sair">
       <span class="menu-item__icon">${svgIcone("log-out")}</span> Sair
     </a>
   `;
@@ -155,6 +164,14 @@ function renderizarMenu() {
       submenu.classList.toggle("open");
     });
   }
+
+  sidebar.querySelector("#link-sair").addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      await API.logout();
+    } catch {}
+    window.location.href = "login.html";
+  });
 }
 
 // =========================================================
@@ -248,6 +265,25 @@ function configurarPWA() {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     });
+  }
+}
+
+// =========================================================
+// SESSÃO - verifica login e personaliza o header
+// =========================================================
+
+async function verificarSessao() {
+  const pagina = window.location.pathname.split("/").pop() || "index.html";
+  if (pagina === "login.html") return;
+
+  try {
+    const usuario = await API.obterSessao();
+    const nomeEl = document.querySelector(".header__user span");
+    const avatarEl = document.querySelector(".header__avatar");
+    if (nomeEl) nomeEl.textContent = `Olá, ${usuario.nome}`;
+    if (avatarEl) avatarEl.textContent = iniciais(usuario.nome);
+  } catch {
+    window.location.href = "login.html";
   }
 }
 
@@ -392,6 +428,7 @@ function substituirIcones() {
 document.addEventListener("DOMContentLoaded", () => {
   injetarFavicon();
   configurarPWA();
+  verificarSessao();
   renderizarMenu();
   aprimorarHeader();
   configurarMenuMobile();

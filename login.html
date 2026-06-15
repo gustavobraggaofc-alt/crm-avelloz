@@ -13,7 +13,8 @@
       <h1>CRM Avelloz</h1>
       <p>Sistema de Vendas - faça login para continuar</p>
 
-      <form>
+      <form id="form-login">
+        <p class="login-erro" id="login-erro" hidden></p>
         <div class="field">
           <label for="email">E-mail</label>
           <input type="email" id="email" placeholder="seu@avelloz.com" required />
@@ -26,16 +27,34 @@
       </form>
 
       <div class="login-card__footer">
-        © 2026 Avelloz Motos · <a href="index.html" style="color: var(--azul-primario);">Voltar ao sistema</a>
+        © 2026 Avelloz Motos
       </div>
     </div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/script.js"></script>
   <script>
-    document.querySelector("form").addEventListener("submit", (e) => {
+    const formLogin = document.getElementById("form-login");
+    const erroLogin = document.getElementById("login-erro");
+    const botaoLogin = formLogin.querySelector("button");
+
+    formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
-      window.location.href = "index.html";
+      erroLogin.hidden = true;
+      botaoLogin.disabled = true;
+
+      const email = document.getElementById("email").value.trim();
+      const senha = document.getElementById("senha").value;
+
+      try {
+        await API.login({ email, senha });
+        window.location.href = "index.html";
+      } catch (erro) {
+        erroLogin.textContent = erro.message;
+        erroLogin.hidden = false;
+        botaoLogin.disabled = false;
+      }
     });
   </script>
 </body>
