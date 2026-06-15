@@ -54,7 +54,6 @@ html {
 body {
   background: var(--fundo-app);
   color: var(--texto-escuro);
-  overscroll-behavior-y: contain;
   overflow-x: hidden;
   width: 100%;
 }
