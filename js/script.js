@@ -452,6 +452,30 @@ function fecharModal() {
   document.body.style.overflow = "";
 }
 
+// =========================================================
+// TOAST NOTIFICATIONS
+// =========================================================
+
+function mostrarToast(mensagem, tipo = "success") {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+
+  const icones = { success: "✓", error: "✕", info: "ℹ" };
+  const toast = document.createElement("div");
+  toast.className = `toast toast--${tipo}`;
+  toast.innerHTML = `<span style="font-size:16px;font-weight:700;">${icones[tipo] || "ℹ"}</span> ${mensagem}`;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("saindo");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+  }, 3200);
+}
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") fecharModal();
 });
