@@ -280,11 +280,104 @@ async function verificarSessao() {
     const usuario = await API.obterSessao();
     const nomeEl = document.querySelector(".header__user span");
     const avatarEl = document.querySelector(".header__avatar");
-    if (nomeEl) nomeEl.textContent = `Olá, ${usuario.nome}`;
+    if (nomeEl) nomeEl.textContent = `Olá, ${usuario.nome.split(" ")[0]}`;
     if (avatarEl) avatarEl.textContent = iniciais(usuario.nome);
+    popularDropdownUsuario(usuario);
   } catch {
     window.location.href = "login.html";
   }
+}
+
+// =========================================================
+// USER DROPDOWN (painel de conta no header)
+// =========================================================
+
+function configurarDropdownUsuario() {
+  const userBtn = document.querySelector(".header__user");
+  if (!userBtn) return;
+
+  userBtn.setAttribute("role", "button");
+  userBtn.setAttribute("tabindex", "0");
+  userBtn.setAttribute("aria-haspopup", "true");
+  userBtn.setAttribute("aria-expanded", "false");
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "user-dropdown";
+  dropdown.id = "user-dropdown";
+  dropdown.setAttribute("hidden", "");
+  dropdown.innerHTML = `
+    <div class="user-dropdown__perfil">
+      <div class="user-dropdown__avatar-lg" id="dd-avatar">--</div>
+      <div class="user-dropdown__info">
+        <strong class="user-dropdown__nome" id="dd-nome">Carregando…</strong>
+        <span class="user-dropdown__email" id="dd-email"></span>
+        <span class="user-dropdown__role-badge" id="dd-role">Vendedor</span>
+      </div>
+    </div>
+    <div class="user-dropdown__sep"></div>
+    <a href="admin-config.html" class="user-dropdown__item" id="dd-config">
+      ${svgIcone("settings", 16)} Configurações
+    </a>
+    <div class="user-dropdown__sep"></div>
+    <button type="button" class="user-dropdown__item" id="dd-trocar">
+      ${svgIcone("repeat", 16)} Trocar de conta
+    </button>
+    <button type="button" class="user-dropdown__item user-dropdown__item--danger" id="dd-sair">
+      ${svgIcone("log-out", 16)} Sair
+    </button>
+  `;
+  document.body.appendChild(dropdown);
+
+  function abrirDropdown() {
+    dropdown.removeAttribute("hidden");
+    userBtn.classList.add("is-open");
+    userBtn.setAttribute("aria-expanded", "true");
+  }
+
+  function fecharDropdown() {
+    dropdown.setAttribute("hidden", "");
+    userBtn.classList.remove("is-open");
+    userBtn.setAttribute("aria-expanded", "false");
+  }
+
+  userBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.hasAttribute("hidden") ? abrirDropdown() : fecharDropdown();
+  });
+
+  userBtn.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirDropdown(); }
+    if (e.key === "Escape") fecharDropdown();
+  });
+
+  document.addEventListener("click", () => fecharDropdown());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") fecharDropdown(); });
+  dropdown.addEventListener("click", (e) => e.stopPropagation());
+
+  async function fazerLogout(e) {
+    e.preventDefault();
+    try { await API.logout(); } catch {}
+    window.location.href = "login.html";
+  }
+
+  dropdown.querySelector("#dd-trocar").addEventListener("click", fazerLogout);
+  dropdown.querySelector("#dd-sair").addEventListener("click", fazerLogout);
+}
+
+function popularDropdownUsuario(usuario) {
+  const ddAvatar = document.getElementById("dd-avatar");
+  const ddNome = document.getElementById("dd-nome");
+  const ddEmail = document.getElementById("dd-email");
+  const ddRole = document.getElementById("dd-role");
+  if (!ddAvatar) return;
+
+  ddAvatar.textContent = iniciais(usuario.nome);
+  ddNome.textContent = usuario.nome;
+  ddEmail.textContent = usuario.email;
+
+  const ehAdmin = usuario.role === "admin";
+  ddRole.textContent = ehAdmin ? "Administrador" : "Vendedor";
+  if (ehAdmin) ddRole.classList.add("user-dropdown__role-badge--admin");
 }
 
 // =========================================================
@@ -431,6 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
   verificarSessao();
   renderizarMenu();
   aprimorarHeader();
+  configurarDropdownUsuario();
   configurarMenuMobile();
   substituirIcones();
 });

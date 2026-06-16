@@ -188,9 +188,19 @@ textarea:focus-visible {
 .header__user {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 14px;
   flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 5px 10px 5px 8px;
+  user-select: none;
+  transition: background var(--transicao);
+}
+
+.header__user:hover,
+.header__user.is-open {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .header__avatar {
@@ -272,11 +282,155 @@ textarea:focus-visible {
 
 .header__chevron {
   opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.header__user.is-open .header__chevron {
+  transform: rotate(180deg);
 }
 
 /* ---- Botão do menu mobile (gaveta lateral) ---- */
 .header__menu-btn.header__icon-btn {
   display: none;
+}
+
+/* =========================================================
+   USER DROPDOWN (painel de conta no header)
+   ========================================================= */
+
+.user-dropdown {
+  position: fixed;
+  top: var(--header-altura);
+  right: 16px;
+  width: 292px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(14, 59, 120, 0.14), 0 4px 12px rgba(14, 59, 120, 0.08);
+  z-index: 500;
+  overflow: hidden;
+  transform-origin: top right;
+  animation: dropdownOpen 0.16s ease;
+}
+
+.user-dropdown[hidden] {
+  display: none;
+}
+
+@keyframes dropdownOpen {
+  from { opacity: 0; transform: scale(0.95) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+.user-dropdown__perfil {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 20px 18px 18px;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e8f0fb 100%);
+}
+
+.user-dropdown__avatar-lg {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--azul-gradiente);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 17px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(20, 82, 163, 0.3);
+}
+
+.user-dropdown__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.user-dropdown__nome {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--texto-escuro);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-dropdown__email {
+  font-size: 12px;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.user-dropdown__role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: var(--azul-claro);
+  color: var(--azul-primario);
+  width: fit-content;
+}
+
+.user-dropdown__role-badge--admin {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: var(--azul-escuro);
+}
+
+.user-dropdown__sep {
+  height: 1px;
+  background: var(--borda);
+}
+
+.user-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--texto-escuro);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transicao);
+  text-align: left;
+  font-family: inherit;
+}
+
+.user-dropdown__item:hover {
+  background: var(--fundo-app);
+}
+
+.user-dropdown__item .icon {
+  color: var(--texto-suave);
+  flex-shrink: 0;
+}
+
+.user-dropdown__item--danger {
+  color: var(--perigo);
+}
+
+.user-dropdown__item--danger .icon {
+  color: var(--perigo);
+}
+
+.user-dropdown__item--danger:hover {
+  background: rgba(220, 38, 38, 0.06);
 }
 
 /* =========================================================
@@ -1494,8 +1648,12 @@ tbody tr:hover {
     display: none;
   }
 
-  .header__chevron {
-    display: none;
+  /* ---- Dropdown: ocupa a largura da tela no mobile ---- */
+  .user-dropdown {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    border-radius: 14px;
   }
 
   /* ---- Sidebar: gaveta lateral fixa, fora do fluxo ---- */
