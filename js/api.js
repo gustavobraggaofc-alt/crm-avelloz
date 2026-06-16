@@ -73,4 +73,13 @@ const API = {
   // Simulações
   salvarSimulacaoFinanciamento: (dados) => apiRequest("POST", "/simulacoes/financiamento", dados),
   salvarSimulacaoConsorcio: (dados) => apiRequest("POST", "/simulacoes/consorcio", dados),
+
+  // Oficina
+  listarOficina: (filtros) => {
+    const p = new URLSearchParams(filtros || {}).toString();
+    return apiRequest("GET", `/oficina${p ? "?" + p : ""}`);
+  },
+  criarOrdem: (dados) => apiRequest("POST", "/oficina", dados),
+  atualizarOrdem: (id, dados) => apiRequest("PUT", `/oficina/${id}`, dados),
+  excluirOrdem: (id) => apiRequest("DELETE", `/oficina/${id}`),
 };

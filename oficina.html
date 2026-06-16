@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CRM Avelloz - Oficina</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Oficina</h1>
+          <p>Revisões periódicas e controle de montagem de motos</p>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="busca-oficina" placeholder="Buscar moto ou mecânico..." />
+          <select id="filtro-status-oficina">
+            <option value="">Todos os status</option>
+            <option value="aguardando">Aguardando</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluido">Concluído</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <button class="btn btn--primary" type="button" id="btn-nova-ordem">+ Nova Ordem</button>
+        </div>
+      </div>
+
+      <!-- Banner de setup (exibido só quando a tabela ainda não existe) -->
+      <div id="banner-setup" class="panel" style="display:none; border-left:4px solid var(--aviso); background:#fffbeb; margin-bottom:20px;">
+        <div style="display:flex; gap:14px; align-items:flex-start;">
+          <span style="font-size:24px; flex-shrink:0;">⚠️</span>
+          <div>
+            <strong style="font-size:15px; color:var(--texto-escuro);">Configuração necessária — tabela da Oficina não encontrada</strong>
+            <p style="margin:6px 0 12px; color:var(--texto-suave); font-size:13px;">Execute o SQL abaixo uma única vez no <a href="https://supabase.com/dashboard/project/orzdwhyafjfvrveanldv/sql/new" target="_blank" rel="noopener" style="color:var(--azul-primario);">Supabase → SQL Editor</a> para criar a tabela:</p>
+            <pre id="sql-setup" style="background:#f3f4f6; border:1px solid var(--borda); border-radius:8px; padding:12px 14px; font-size:12px; line-height:1.6; overflow-x:auto; margin:0 0 10px; white-space:pre-wrap;">CREATE TABLE IF NOT EXISTS oficina_ordens (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tipo           TEXT NOT NULL CHECK (tipo IN ('revisao', 'montagem')),
+  status         TEXT NOT NULL DEFAULT 'aguardando'
+                   CHECK (status IN ('aguardando','em_andamento','concluido','cancelado')),
+  cliente_nome   TEXT,
+  modelo_moto    TEXT NOT NULL,
+  mecanico       TEXT NOT NULL,
+  data_entrada   TEXT NOT NULL,
+  data_prevista  TEXT,
+  data_conclusao TEXT,
+  km_entrada     INTEGER,
+  servicos       TEXT,
+  observacoes    TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);</pre>
+            <button type="button" class="btn btn--ghost" onclick="navigator.clipboard.writeText(document.getElementById('sql-setup').textContent).then(()=>alert('SQL copiado!'))">📋 Copiar SQL</button>
+            <button type="button" class="btn btn--primary" style="margin-left:8px;" onclick="location.reload()">↻ Já criei — recarregar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <section class="cards-grid">
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge oficina-icon">⚙️</span> Em Andamento
+          </div>
+          <div class="value" id="kpi-em-andamento">0</div>
+          <div class="subvalue" id="kpi-em-andamento-sub">revisões + montagens</div>
+        </div>
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge oficina-icon">🔧</span> Revisões Este Mês
+          </div>
+          <div class="value" id="kpi-revisoes-mes">0</div>
+        </div>
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge oficina-icon">🏍️</span> Motos Montadas
+          </div>
+          <div class="value" id="kpi-montagens">0</div>
+          <div class="subvalue" id="kpi-montagens-sub">concluídas no total</div>
+        </div>
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge oficina-icon">✅</span> Concluídas
+          </div>
+          <div class="value" id="kpi-concluidas">0</div>
+          <div class="subvalue">este mês</div>
+        </div>
+      </section>
+
+      <!-- ABAS -->
+      <div class="tabs" style="margin-bottom: 0;">
+        <button type="button" class="tab-btn active" data-tab="revisoes">Revisões</button>
+        <button type="button" class="tab-btn" data-tab="montagens">Montagens</button>
+      </div>
+
+      <!-- TABELA REVISÕES -->
+      <div class="tab-content active" id="tab-revisoes">
+        <section class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Moto</th>
+                <th>Cliente</th>
+                <th>Mecânico</th>
+                <th>Km Entrada</th>
+                <th>Data Entrada</th>
+                <th>Previsão</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="lista-revisoes">
+              <tr><td colspan="8" class="nota">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- TABELA MONTAGENS -->
+      <div class="tab-content" id="tab-montagens">
+        <section class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Modelo da Moto</th>
+                <th>Mecânico</th>
+                <th>Data Entrada</th>
+                <th>Previsão</th>
+                <th>Conclusão</th>
+                <th>Serviços / Obs.</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="lista-montagens">
+              <tr><td colspan="8" class="nota">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    // ---- Configurações ----
+    const STATUS_LABEL = {
+      aguardando:   "Aguardando",
+      em_andamento: "Em Andamento",
+      concluido:    "Concluído",
+      cancelado:    "Cancelado",
+    };
+
+    const STATUS_BADGE = {
+      aguardando:   "badge--warning",
+      em_andamento: "badge--info",
+      concluido:    "badge--success",
+      cancelado:    "badge--danger",
+    };
+
+    const STATUS_PROXIMO = {
+      aguardando:   "em_andamento",
+      em_andamento: "concluido",
+    };
+
+    // ---- Estado ----
+    let ordensCache = [];
+    let abaAtiva = "revisoes";
+    let filtroStatusAtivo = "";
+    let termoBusca = "";
+
+    // ---- Utilitários ----
+    function meAtual() {
+      const hoje = new Date();
+      return `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+    }
+
+    function dataPertenceAoMes(dataBR) {
+      if (!dataBR) return false;
+      const partes = dataBR.split("/");
+      if (partes.length < 3) return false;
+      return `${partes[1]}/${partes[2]}` === meAtual();
+    }
+
+    function ordensFiltradas(tipo) {
+      return ordensCache.filter((o) => {
+        if (o.tipo !== tipo) return false;
+        if (filtroStatusAtivo && o.status !== filtroStatusAtivo) return false;
+        if (termoBusca) {
+          const t = termoBusca.toLowerCase();
+          const campos = [o.modelo_moto, o.mecanico, o.cliente_nome, o.servicos].join(" ").toLowerCase();
+          if (!campos.includes(t)) return false;
+        }
+        return true;
+      });
+    }
+
+    // ---- KPIs ----
+    function atualizarKPIs() {
+      const emAndamento = ordensCache.filter((o) => o.status === "aguardando" || o.status === "em_andamento");
+      const revisoesMes = ordensCache.filter((o) => o.tipo === "revisao" && o.status !== "cancelado" && dataPertenceAoMes(o.data_entrada));
+      const montagens   = ordensCache.filter((o) => o.tipo === "montagem" && o.status === "concluido");
+      const concluidasMes = ordensCache.filter((o) => o.status === "concluido" && dataPertenceAoMes(o.data_conclusao || o.data_entrada));
+
+      document.getElementById("kpi-em-andamento").textContent = emAndamento.length;
+      document.getElementById("kpi-revisoes-mes").textContent = revisoesMes.length;
+      document.getElementById("kpi-montagens").textContent    = montagens.length;
+      document.getElementById("kpi-concluidas").textContent   = concluidasMes.length;
+    }
+
+    // ---- Renderização das tabelas ----
+    function rowRevisao(o) {
+      const badge = `<span class="badge ${STATUS_BADGE[o.status] || ""}">${STATUS_LABEL[o.status] || o.status}</span>`;
+      const proximo = STATUS_PROXIMO[o.status];
+      const btnAvancar = proximo
+        ? `<button class="btn btn--sm btn--ghost" data-acao="avancar" data-id="${o.id}" title="Avançar status">▶</button>`
+        : "";
+      return `
+        <tr>
+          <td><strong>${o.modelo_moto}</strong></td>
+          <td>${o.cliente_nome || "—"}</td>
+          <td>${o.mecanico}</td>
+          <td>${o.km_entrada ? o.km_entrada.toLocaleString("pt-BR") + " km" : "—"}</td>
+          <td>${o.data_entrada || "—"}</td>
+          <td>${o.data_prevista || "—"}</td>
+          <td>${badge}</td>
+          <td>
+            ${btnAvancar}
+            <button class="btn btn--icon" data-acao="editar" data-id="${o.id}" title="Editar">✏️</button>
+            <button class="btn btn--icon" data-acao="excluir" data-id="${o.id}" title="Excluir">🗑️</button>
+          </td>
+        </tr>`;
+    }
+
+    function rowMontagem(o) {
+      const badge = `<span class="badge ${STATUS_BADGE[o.status] || ""}">${STATUS_LABEL[o.status] || o.status}</span>`;
+      const proximo = STATUS_PROXIMO[o.status];
+      const btnAvancar = proximo
+        ? `<button class="btn btn--sm btn--ghost" data-acao="avancar" data-id="${o.id}" title="Avançar status">▶</button>`
+        : "";
+      const obs = o.servicos || o.observacoes || "—";
+      return `
+        <tr>
+          <td><strong>${o.modelo_moto}</strong></td>
+          <td>${o.mecanico}</td>
+          <td>${o.data_entrada || "—"}</td>
+          <td>${o.data_prevista || "—"}</td>
+          <td>${o.data_conclusao || "—"}</td>
+          <td class="cell-truncate" title="${obs}">${obs}</td>
+          <td>${badge}</td>
+          <td>
+            ${btnAvancar}
+            <button class="btn btn--icon" data-acao="editar" data-id="${o.id}" title="Editar">✏️</button>
+            <button class="btn btn--icon" data-acao="excluir" data-id="${o.id}" title="Excluir">🗑️</button>
+          </td>
+        </tr>`;
+    }
+
+    function renderizarTabelas() {
+      const revisoes  = ordensFiltradas("revisao");
+      const montagens = ordensFiltradas("montagem");
+
+      const tbodyR = document.getElementById("lista-revisoes");
+      tbodyR.innerHTML = revisoes.length
+        ? revisoes.map(rowRevisao).join("")
+        : `<tr><td colspan="8" class="nota">Nenhuma revisão encontrada.</td></tr>`;
+
+      const tbodyM = document.getElementById("lista-montagens");
+      tbodyM.innerHTML = montagens.length
+        ? montagens.map(rowMontagem).join("")
+        : `<tr><td colspan="8" class="nota">Nenhuma montagem encontrada.</td></tr>`;
+
+      substituirIcones();
+    }
+
+    // ---- Carregar dados ----
+    async function carregarOficina() {
+      try {
+        ordensCache = await API.listarOficina();
+        document.getElementById("banner-setup").style.display = "none";
+      } catch (err) {
+        ordensCache = [];
+        if (err.message && err.message.includes("TABELA_NAO_CRIADA")) {
+          document.getElementById("banner-setup").style.display = "block";
+        }
+      }
+      atualizarKPIs();
+      renderizarTabelas();
+    }
+
+    // ---- Formulário (modal) ----
+    function abrirFormulario(ordem, tipoDefault) {
+      const editando = Boolean(ordem);
+      const tipo = ordem?.tipo || tipoDefault || "revisao";
+      const titulo = editando ? "Editar Ordem" : (tipo === "revisao" ? "Nova Revisão" : "Nova Montagem");
+      const hojeISO = new Date().toLocaleDateString("pt-BR");
+
+      abrirModal(titulo, `
+        <form id="form-oficina">
+          <div class="form-grid">
+            <div class="field">
+              <label for="of-tipo">Tipo</label>
+              <select id="of-tipo">
+                <option value="revisao"  ${tipo === "revisao"  ? "selected" : ""}>Revisão Periódica</option>
+                <option value="montagem" ${tipo === "montagem" ? "selected" : ""}>Montagem de Moto</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="of-status">Status</label>
+              <select id="of-status">
+                <option value="aguardando"   ${!ordem || ordem.status === "aguardando"   ? "selected" : ""}>Aguardando</option>
+                <option value="em_andamento" ${ordem?.status === "em_andamento" ? "selected" : ""}>Em Andamento</option>
+                <option value="concluido"    ${ordem?.status === "concluido"    ? "selected" : ""}>Concluído</option>
+                <option value="cancelado"    ${ordem?.status === "cancelado"    ? "selected" : ""}>Cancelado</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="of-modelo">Modelo da Moto *</label>
+              <input type="text" id="of-modelo" placeholder="Ex: Honda CG 160 Titan" required value="${ordem?.modelo_moto || ""}" />
+            </div>
+            <div class="field" id="campo-cliente">
+              <label for="of-cliente">Cliente</label>
+              <input type="text" id="of-cliente" placeholder="Nome do cliente" value="${ordem?.cliente_nome || ""}" />
+            </div>
+            <div class="field">
+              <label for="of-mecanico">Mecânico *</label>
+              <input type="text" id="of-mecanico" placeholder="Nome do mecânico" required value="${ordem?.mecanico || ""}" />
+            </div>
+            <div class="field" id="campo-km">
+              <label for="of-km">Km na Entrada</label>
+              <input type="number" id="of-km" placeholder="Ex: 15000" min="0" value="${ordem?.km_entrada || ""}" />
+            </div>
+            <div class="field">
+              <label for="of-entrada">Data de Entrada *</label>
+              <input type="text" id="of-entrada" placeholder="DD/MM/AAAA" required value="${ordem?.data_entrada || hojeISO}" />
+            </div>
+            <div class="field">
+              <label for="of-previsao">Previsão de Entrega</label>
+              <input type="text" id="of-previsao" placeholder="DD/MM/AAAA" value="${ordem?.data_prevista || ""}" />
+            </div>
+            <div class="field" id="campo-conclusao" style="display: ${editando && ordem?.status === "concluido" ? "block" : "none"}">
+              <label for="of-conclusao">Data de Conclusão</label>
+              <input type="text" id="of-conclusao" placeholder="DD/MM/AAAA" value="${ordem?.data_conclusao || ""}" />
+            </div>
+            <div class="field full">
+              <label for="of-servicos">Serviços a Realizar</label>
+              <textarea id="of-servicos" rows="3" placeholder="Ex: Troca de óleo, filtro de ar, ajuste de corrente…">${ordem?.servicos || ""}</textarea>
+            </div>
+            <div class="field full">
+              <label for="of-obs">Observações</label>
+              <textarea id="of-obs" rows="2" placeholder="Observações adicionais…">${ordem?.observacoes || ""}</textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="btn-cancelar-ordem">Cancelar</button>
+            <button type="submit" class="btn btn--primary">${editando ? "Salvar Alterações" : "Criar Ordem"}</button>
+          </div>
+        </form>
+      `);
+
+      // Mostrar/esconder campos por tipo
+      function ajustarCampos() {
+        const t = document.getElementById("of-tipo").value;
+        const ehRevisao = t === "revisao";
+        document.getElementById("campo-cliente").style.display = ehRevisao ? "" : "none";
+        document.getElementById("campo-km").style.display      = ehRevisao ? "" : "none";
+      }
+
+      function ajustarCamposConclusao() {
+        const s = document.getElementById("of-status").value;
+        document.getElementById("campo-conclusao").style.display = s === "concluido" ? "" : "none";
+        if (s === "concluido" && !document.getElementById("of-conclusao").value) {
+          document.getElementById("of-conclusao").value = new Date().toLocaleDateString("pt-BR");
+        }
+      }
+
+      document.getElementById("of-tipo").addEventListener("change", ajustarCampos);
+      document.getElementById("of-status").addEventListener("change", ajustarCamposConclusao);
+      document.getElementById("btn-cancelar-ordem").addEventListener("click", fecharModal);
+      ajustarCampos();
+
+      document.getElementById("form-oficina").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const status = document.getElementById("of-status").value;
+        const dados = {
+          tipo:          document.getElementById("of-tipo").value,
+          status,
+          modelo_moto:   document.getElementById("of-modelo").value.trim(),
+          cliente_nome:  document.getElementById("of-cliente").value.trim() || null,
+          mecanico:      document.getElementById("of-mecanico").value.trim(),
+          km_entrada:    Number(document.getElementById("of-km").value) || null,
+          data_entrada:  document.getElementById("of-entrada").value.trim(),
+          data_prevista: document.getElementById("of-previsao").value.trim() || null,
+          data_conclusao: status === "concluido" ? (document.getElementById("of-conclusao").value.trim() || new Date().toLocaleDateString("pt-BR")) : null,
+          servicos:      document.getElementById("of-servicos").value.trim() || null,
+          observacoes:   document.getElementById("of-obs").value.trim() || null,
+        };
+
+        try {
+          if (editando) {
+            await API.atualizarOrdem(ordem.id, dados);
+          } else {
+            await API.criarOrdem(dados);
+          }
+          fecharModal();
+          await carregarOficina();
+        } catch (err) {
+          alert("Erro ao salvar: " + err.message);
+        }
+      });
+    }
+
+    // ---- Ações nas tabelas ----
+    async function handleAcao(e) {
+      const btn = e.target.closest("button[data-acao]");
+      if (!btn) return;
+
+      const id = btn.dataset.id;
+      const ordem = ordensCache.find((o) => o.id === id);
+      if (!ordem) return;
+
+      if (btn.dataset.acao === "editar") {
+        abrirFormulario(ordem, ordem.tipo);
+      } else if (btn.dataset.acao === "excluir") {
+        if (confirm(`Excluir ordem "${ordem.modelo_moto}"?`)) {
+          try {
+            await API.excluirOrdem(id);
+            await carregarOficina();
+          } catch (err) {
+            alert("Erro ao excluir: " + err.message);
+          }
+        }
+      } else if (btn.dataset.acao === "avancar") {
+        const proximo = STATUS_PROXIMO[ordem.status];
+        if (!proximo) return;
+        const update = { status: proximo };
+        if (proximo === "concluido") update.data_conclusao = new Date().toLocaleDateString("pt-BR");
+        try {
+          await API.atualizarOrdem(id, update);
+          await carregarOficina();
+        } catch (err) {
+          alert("Erro ao atualizar status: " + err.message);
+        }
+      }
+    }
+
+    document.getElementById("lista-revisoes").addEventListener("click", handleAcao);
+    document.getElementById("lista-montagens").addEventListener("click", handleAcao);
+
+    // ---- Abas ----
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+        abaAtiva = btn.dataset.tab;
+      });
+    });
+
+    // ---- Botão nova ordem (respeita aba ativa) ----
+    document.getElementById("btn-nova-ordem").addEventListener("click", () => {
+      abrirFormulario(null, abaAtiva === "montagens" ? "montagem" : "revisao");
+    });
+
+    // ---- Filtros ----
+    document.getElementById("busca-oficina").addEventListener("input", (e) => {
+      termoBusca = e.target.value.trim();
+      renderizarTabelas();
+    });
+
+    document.getElementById("filtro-status-oficina").addEventListener("change", (e) => {
+      filtroStatusAtivo = e.target.value;
+      renderizarTabelas();
+    });
+
+    // ---- Inicializar ----
+    carregarOficina();
+  </script>
+</body>
+</html>

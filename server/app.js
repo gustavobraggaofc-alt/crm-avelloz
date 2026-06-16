@@ -754,6 +754,56 @@ app.post("/api/simulacoes/consorcio", wrap(async (req, res) => {
 }));
 
 // ---------------------------------------------------------
+// OFICINA - Revisões periódicas e montagens
+// ---------------------------------------------------------
+
+const CAMPOS_OFICINA = [
+  "tipo", "status", "cliente_nome", "modelo_moto", "mecanico",
+  "data_entrada", "data_prevista", "data_conclusao", "km_entrada",
+  "servicos", "observacoes",
+];
+
+app.get("/api/oficina", wrap(async (req, res) => {
+  let q = supabase.from("oficina_ordens").select("*").order("created_at", { ascending: false });
+  if (req.query.tipo) q = q.eq("tipo", req.query.tipo);
+  if (req.query.status) q = q.eq("status", req.query.status);
+  const { data, error } = await q;
+  if (error) {
+    if (error.message && error.message.includes("oficina_ordens")) {
+      return res.status(503).json({ erro: "TABELA_NAO_CRIADA", mensagem: error.message });
+    }
+    throw error;
+  }
+  res.json(data || []);
+}));
+
+app.post("/api/oficina", wrap(async (req, res) => {
+  const reg = Object.fromEntries(
+    CAMPOS_OFICINA.filter((c) => req.body[c] !== undefined).map((c) => [c, req.body[c]])
+  );
+  if (!reg.data_entrada) reg.data_entrada = dataHojeBR();
+  const { data, error } = await supabase.from("oficina_ordens").insert(reg).select().single();
+  if (error) throw error;
+  res.status(201).json(data);
+}));
+
+app.put("/api/oficina/:id", wrap(async (req, res) => {
+  const upd = Object.fromEntries(
+    CAMPOS_OFICINA.filter((c) => req.body[c] !== undefined).map((c) => [c, req.body[c]])
+  );
+  const { data, error } = await supabase
+    .from("oficina_ordens").update(upd).eq("id", req.params.id).select().single();
+  if (error) throw error;
+  res.json(data);
+}));
+
+app.delete("/api/oficina/:id", wrap(async (req, res) => {
+  const { error } = await supabase.from("oficina_ordens").delete().eq("id", req.params.id);
+  if (error) throw error;
+  res.json({ ok: true });
+}));
+
+// ---------------------------------------------------------
 // Tratamento de erros
 // ---------------------------------------------------------
 

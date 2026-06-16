@@ -701,6 +701,12 @@ textarea:focus-visible {
 .delta.up { color: var(--sucesso); }
 .delta.down { color: var(--perigo); }
 
+.card--kpi .subvalue {
+  font-size: 11px;
+  color: var(--texto-suave);
+  margin-top: 2px;
+}
+
 .icon-badge {
   width: 38px;
   height: 38px;
@@ -1043,6 +1049,20 @@ tbody tr:hover {
   background: var(--azul-claro);
   border-color: var(--azul-claro);
   color: var(--azul-primario);
+}
+
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  height: auto;
+  min-height: 28px;
+}
+
+.cell-truncate {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* =========================================================
