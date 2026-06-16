@@ -35,15 +35,7 @@
           <p>Controle de motos disponíveis para venda</p>
         </div>
         <div class="toolbar">
-          <select id="filtro-marca">
-            <option value="">Todas as marcas</option>
-            <option>Honda</option>
-            <option>Yamaha</option>
-            <option>Suzuki</option>
-            <option>Kawasaki</option>
-            <option>Royal Enfield</option>
-          </select>
-          <input type="text" id="busca-moto" placeholder="Buscar modelo..." />
+          <input type="text" id="busca-moto" placeholder="Buscar por marca ou modelo…" />
           <button class="btn btn--primary" type="button" id="btn-adicionar-moto">+ Adicionar Moto</button>
         </div>
       </div>
@@ -122,13 +114,14 @@
     let motosCache = [];
 
     function motosFiltradas() {
-      const marca = document.getElementById("filtro-marca").value;
       const termo = document.getElementById("busca-moto").value.trim().toLowerCase();
 
       return motosCache.filter((m) => {
-        const passaMarca = !marca || m.marca === marca;
-        const passaBusca = !termo || m.modelo.toLowerCase().includes(termo);
-        return passaMarca && passaBusca;
+        if (!termo) return true;
+        return (
+          m.modelo.toLowerCase().includes(termo) ||
+          m.marca.toLowerCase().includes(termo)
+        );
       });
     }
 
@@ -188,16 +181,13 @@
     function abrirFormularioMoto(moto) {
       const editando = Boolean(moto);
       const titulo = editando ? "Editar Moto" : "Adicionar Moto";
-      const marcas = ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Royal Enfield"];
 
       abrirModal(titulo, `
         <form id="form-moto">
           <div class="form-grid">
             <div class="field">
               <label for="mf-marca">Marca</label>
-              <select id="mf-marca">
-                ${marcas.map((marca) => `<option ${moto?.marca === marca ? "selected" : ""}>${marca}</option>`).join("")}
-              </select>
+              <input type="text" id="mf-marca" placeholder="Ex: Honda, Yamaha, Shineray…" required value="${moto?.marca || ""}" />
             </div>
             <div class="field">
               <label for="mf-modelo">Modelo</label>
@@ -252,22 +242,21 @@
         try {
           if (editando) {
             await API.atualizarMoto(moto.id, dados);
-            alert("Moto atualizada com sucesso!");
+            mostrarToast("Moto atualizada com sucesso!");
           } else {
             await API.criarMoto(dados);
-            alert("Moto cadastrada com sucesso!");
+            mostrarToast("Moto cadastrada com sucesso!");
           }
 
           fecharModal();
           await renderizarEstoque();
         } catch (erro) {
-          alert(`Erro ao salvar moto: ${erro.message}`);
+          mostrarToast(`Erro ao salvar moto: ${erro.message}`, "error");
         }
       });
     }
 
     document.getElementById("btn-adicionar-moto").addEventListener("click", () => abrirFormularioMoto(null));
-    document.getElementById("filtro-marca").addEventListener("change", renderizarTabela);
     document.getElementById("busca-moto").addEventListener("input", renderizarTabela);
 
     document.getElementById("lista-estoque").addEventListener("click", async (e) => {
@@ -284,9 +273,10 @@
         if (confirm(`Deseja realmente excluir "${moto.marca} ${moto.modelo}"?`)) {
           try {
             await API.excluirMoto(id);
+            mostrarToast("Moto removida do estoque.");
             await renderizarEstoque();
           } catch (erro) {
-            alert(`Erro ao excluir moto: ${erro.message}`);
+            mostrarToast(`Erro ao excluir moto: ${erro.message}`, "error");
           }
         }
       }

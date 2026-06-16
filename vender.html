@@ -58,19 +58,9 @@
             <select id="vendedor"></select>
           </div>
 
-          <div class="field">
-            <label for="moto-marca">Marca</label>
-            <select id="moto-marca">
-              <option>Honda</option>
-              <option>Yamaha</option>
-              <option>Suzuki</option>
-              <option>Kawasaki</option>
-              <option>Royal Enfield</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="moto-modelo">Modelo</label>
-            <input type="text" id="moto-modelo" placeholder="Ex: CG 160 Titan" />
+          <div class="field full">
+            <label for="moto-descricao">Veículo</label>
+            <input type="text" id="moto-descricao" placeholder="Ex: Honda CG 160 Titan, Yamaha Factor 150, Royal Enfield Meteor 350…" required />
           </div>
           <div class="field">
             <label for="moto-ano">Ano</label>
@@ -201,8 +191,7 @@
       if (!moto) return;
 
       motoSelecionada = moto;
-      document.getElementById("moto-marca").value = moto.marca;
-      document.getElementById("moto-modelo").value = moto.modelo;
+      document.getElementById("moto-descricao").value = `${moto.marca} ${moto.modelo}`.trim();
       document.getElementById("moto-ano").value = moto.ano;
       document.getElementById("moto-cor").value = moto.cor;
       document.getElementById("valor").value = formatarMoeda(moto.valor);
@@ -222,7 +211,7 @@
         cliente_cpf: document.getElementById("cliente-cpf").value.trim(),
         vendedor_id: Number(selectVendedor.value) || null,
         moto_id: motoSelecionada ? motoSelecionada.id : null,
-        moto_descricao: `${document.getElementById("moto-marca").value} ${document.getElementById("moto-modelo").value}`.trim(),
+        moto_descricao: document.getElementById("moto-descricao").value.trim(),
         valor: parseMoeda(document.getElementById("valor").value),
         forma_pagamento: document.getElementById("pagamento").value,
         observacoes: document.getElementById("observacoes").value.trim(),
@@ -230,13 +219,12 @@
 
       try {
         await API.registrarVenda(dados);
-        alert("Venda registrada com sucesso!");
-
+        mostrarToast("Venda registrada com sucesso!");
         form.reset();
         motoSelecionada = null;
         await carregarEstoque();
       } catch (erro) {
-        alert(`Erro ao registrar venda: ${erro.message}`);
+        mostrarToast(`Erro ao registrar venda: ${erro.message}`, "error");
       }
     });
 
