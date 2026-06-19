@@ -60,7 +60,7 @@
           <div class="value" id="kpi-vendas-mes">0</div>
         </div>
 
-        <div class="card card--kpi">
+        <div class="card card--kpi" id="card-faturamento">
           <div class="label">
             <span class="icon-badge">💰</span> Faturamento do Mês
           </div>
@@ -110,7 +110,7 @@
               <th>Cliente</th>
               <th>Vendedor</th>
               <th>Moto</th>
-              <th>Valor</th>
+              <th id="th-valor">Valor</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -139,8 +139,13 @@
       "Cancelada": "badge--danger",
     };
 
-    async function renderizarDashboard() {
+    async function renderizarDashboard(isAdmin) {
       const dados = await API.obterDashboard();
+
+      if (!isAdmin) {
+        document.getElementById("card-faturamento").style.display = "none";
+        document.getElementById("th-valor").style.display = "none";
+      }
 
       document.getElementById("kpi-vendas-hoje").textContent = dados.vendasHoje;
       document.getElementById("kpi-vendas-mes").textContent = dados.vendasMes;
@@ -189,7 +194,7 @@
                 <div class="mini-ranking__name">${v.nome}</div>
                 <div class="mini-ranking__sub">${v.motos_vendidas} motos vendidas</div>
               </div>
-              <div class="mini-ranking__value">${formatarMoeda(v.vendas_mes)}</div>
+              ${isAdmin ? `<div class="mini-ranking__value">${formatarMoeda(v.vendas_mes)}</div>` : ""}
             </div>
           `)
           .join("");
@@ -205,7 +210,7 @@
               <td>${v.cliente_nome}</td>
               <td>${v.vendedor_nome || "-"}</td>
               <td>${v.moto_descricao || "-"}</td>
-              <td>${formatarMoeda(v.valor)}</td>
+              ${isAdmin ? `<td>${formatarMoeda(v.valor)}</td>` : ""}
               <td><span class="badge ${classeBadge}">${v.status}</span></td>
             </tr>
           `;
@@ -213,7 +218,11 @@
         .join("");
     }
 
-    renderizarDashboard();
+    async function initDashboard() {
+      const sessao = await API.obterSessao().catch(() => null);
+      renderizarDashboard(sessao?.role === "admin");
+    }
+    initDashboard();
   </script>
 </body>
 </html>

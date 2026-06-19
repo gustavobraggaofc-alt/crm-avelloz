@@ -1116,6 +1116,16 @@ tbody tr:hover {
   background: var(--azul-claro);
 }
 
+.btn--danger {
+  background: var(--perigo);
+  color: #fff;
+  border: none;
+}
+
+.btn--danger:hover {
+  background: #b91c1c;
+}
+
 .btn--icon {
   background: transparent;
   border: 1px solid var(--borda);

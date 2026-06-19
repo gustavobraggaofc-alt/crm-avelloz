@@ -270,15 +270,18 @@
       if (btn.dataset.acao === "editar") {
         abrirFormularioMoto(moto);
       } else if (btn.dataset.acao === "excluir") {
-        if (confirm(`Deseja realmente excluir "${moto.marca} ${moto.modelo}"?`)) {
-          try {
-            await API.excluirMoto(id);
-            mostrarToast("Moto removida do estoque.");
-            await renderizarEstoque();
-          } catch (erro) {
-            mostrarToast(`Erro ao excluir moto: ${erro.message}`, "error");
+        confirmarExclusao(
+          `Deseja realmente excluir <strong>${moto.marca} ${moto.modelo}</strong>? Esta ação não pode ser desfeita.`,
+          async () => {
+            try {
+              await API.excluirMoto(id);
+              mostrarToast("Moto removida do estoque.");
+              await renderizarEstoque();
+            } catch (erro) {
+              mostrarToast(`Erro ao excluir: ${erro.message}`, "error");
+            }
           }
-        }
+        );
       }
     });
 

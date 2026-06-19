@@ -280,6 +280,7 @@ async function verificarSessao() {
 
   try {
     const usuario = await API.obterSessao();
+    window.SESSAO_ATUAL = usuario;
     const nomeEl = document.querySelector(".header__user span");
     const avatarEl = document.querySelector(".header__avatar");
     if (nomeEl) nomeEl.textContent = `Olá, ${usuario.nome.split(" ")[0]}`;
@@ -450,6 +451,21 @@ function fecharModal() {
   overlay.classList.remove("is-open");
   overlay.innerHTML = "";
   document.body.style.overflow = "";
+}
+
+function confirmarExclusao(mensagem, onConfirmar) {
+  abrirModal("Confirmar exclusão", `
+    <p style="margin:0 0 24px;">${mensagem}</p>
+    <div class="form-actions">
+      <button type="button" class="btn btn--ghost" id="btn-cancel-excl">Cancelar</button>
+      <button type="button" class="btn btn--danger" id="btn-ok-excl">Excluir</button>
+    </div>
+  `);
+  document.getElementById("btn-cancel-excl").addEventListener("click", fecharModal);
+  document.getElementById("btn-ok-excl").addEventListener("click", () => {
+    fecharModal();
+    onConfirmar();
+  });
 }
 
 // =========================================================
