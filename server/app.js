@@ -408,7 +408,9 @@ app.get("/api/vendas", wrap(async (req, res) => {
     .order("id", { ascending: false })
     .limit(limite);
   if (error) throw error;
-  res.json(data);
+
+  if (req.usuario.role === "admin") return res.json(data);
+  res.json(data.map(({ valor, ...resto }) => resto));
 }));
 
 app.post("/api/vendas", wrap(async (req, res) => {
@@ -529,6 +531,123 @@ app.post("/api/vendas", wrap(async (req, res) => {
   if (errVenda) throw errVenda;
 
   res.status(201).json(venda);
+}));
+
+// Editar e excluir vendas mexe direto em faturamento, comissão e estoque,
+// então fica restrito a admin (mesma lógica usada para vendedores/motos).
+app.put("/api/vendas/:id", exigirAdmin, wrap(async (req, res) => {
+  const { data: existente, error: errBusca } = await supabase
+    .from("vendas").select("*").eq("id", req.params.id).maybeSingle();
+  if (errBusca) throw errBusca;
+  if (!existente) return res.status(404).json({ erro: "Venda não encontrada" });
+
+  const {
+    cliente_nome, cliente_telefone, cliente_cpf, moto_descricao,
+    valor, forma_pagamento, observacoes, status,
+  } = req.body;
+
+  const valorValidado = validarNumero(valor, { campo: "Valor", min: 0.01, padrao: existente.valor });
+  const novoStatus = status || existente.status;
+  const eraCancelada = existente.status === "Cancelada";
+  const ficaCancelada = novoStatus === "Cancelada";
+
+  // Mantém vendas_mes/motos_vendidas do vendedor e a quantidade em estoque
+  // coerentes com o novo status/valor (a venda só "conta" enquanto não está Cancelada).
+  if (existente.vendedor_id && !eraCancelada && !ficaCancelada) {
+    const delta = valorValidado - existente.valor;
+    if (delta !== 0) {
+      const { data: vend } = await supabase.from("vendedores").select("vendas_mes").eq("id", existente.vendedor_id).maybeSingle();
+      if (vend) {
+        await supabase.from("vendedores")
+          .update({ vendas_mes: Math.max((vend.vendas_mes || 0) + delta, 0) })
+          .eq("id", existente.vendedor_id);
+      }
+    }
+  } else if (existente.vendedor_id && !eraCancelada && ficaCancelada) {
+    const { data: vend } = await supabase.from("vendedores").select("vendas_mes, motos_vendidas").eq("id", existente.vendedor_id).maybeSingle();
+    if (vend) {
+      await supabase.from("vendedores").update({
+        vendas_mes: Math.max((vend.vendas_mes || 0) - existente.valor, 0),
+        motos_vendidas: Math.max((vend.motos_vendidas || 0) - 1, 0),
+      }).eq("id", existente.vendedor_id);
+    }
+    if (existente.moto_id) {
+      const { data: moto } = await supabase.from("motos").select("quantidade").eq("id", existente.moto_id).maybeSingle();
+      if (moto) await supabase.from("motos").update({ quantidade: moto.quantidade + 1 }).eq("id", existente.moto_id);
+      await recalcularStatusMoto(existente.moto_id);
+    }
+  } else if (existente.vendedor_id && eraCancelada && !ficaCancelada) {
+    const { data: vend } = await supabase.from("vendedores").select("vendas_mes, motos_vendidas").eq("id", existente.vendedor_id).maybeSingle();
+    if (vend) {
+      await supabase.from("vendedores").update({
+        vendas_mes: (vend.vendas_mes || 0) + valorValidado,
+        motos_vendidas: (vend.motos_vendidas || 0) + 1,
+      }).eq("id", existente.vendedor_id);
+    }
+    if (existente.moto_id) {
+      const { data: moto } = await supabase.from("motos").select("quantidade").eq("id", existente.moto_id).maybeSingle();
+      if (moto) await supabase.from("motos").update({ quantidade: Math.max(moto.quantidade - 1, 0) }).eq("id", existente.moto_id);
+      await recalcularStatusMoto(existente.moto_id);
+    }
+  }
+
+  const { data: atualizado, error } = await supabase
+    .from("vendas")
+    .update({
+      cliente_nome: cliente_nome ?? existente.cliente_nome,
+      cliente_telefone: cliente_telefone ?? existente.cliente_telefone,
+      cliente_cpf: cliente_cpf ?? existente.cliente_cpf,
+      moto_descricao: moto_descricao ?? existente.moto_descricao,
+      valor: valorValidado,
+      forma_pagamento: forma_pagamento ?? existente.forma_pagamento,
+      observacoes: observacoes ?? existente.observacoes,
+      status: novoStatus,
+    })
+    .eq("id", req.params.id)
+    .select()
+    .single();
+  if (error) throw error;
+
+  res.json(atualizado);
+}));
+
+app.delete("/api/vendas/:id", exigirAdmin, wrap(async (req, res) => {
+  const { data: existente, error: errBusca } = await supabase
+    .from("vendas").select("*").eq("id", req.params.id).maybeSingle();
+  if (errBusca) throw errBusca;
+  if (!existente) return res.status(404).json({ erro: "Venda não encontrada" });
+
+  // Desfaz os efeitos da venda (estoque e estatísticas do vendedor) antes
+  // de remover o registro, igual já era feito ao trocar o status para Cancelada.
+  if (existente.status !== "Cancelada") {
+    if (existente.vendedor_id) {
+      const { data: vend } = await supabase.from("vendedores").select("vendas_mes, motos_vendidas").eq("id", existente.vendedor_id).maybeSingle();
+      if (vend) {
+        await supabase.from("vendedores").update({
+          vendas_mes: Math.max((vend.vendas_mes || 0) - existente.valor, 0),
+          motos_vendidas: Math.max((vend.motos_vendidas || 0) - 1, 0),
+        }).eq("id", existente.vendedor_id);
+      }
+    }
+    if (existente.moto_id) {
+      const { data: moto } = await supabase.from("motos").select("quantidade").eq("id", existente.moto_id).maybeSingle();
+      if (moto) await supabase.from("motos").update({ quantidade: moto.quantidade + 1 }).eq("id", existente.moto_id);
+      await recalcularStatusMoto(existente.moto_id);
+    }
+  }
+
+  if (existente.cliente_id) {
+    const { data: cliente } = await supabase.from("clientes").select("motos_compradas").eq("id", existente.cliente_id).maybeSingle();
+    if (cliente) {
+      await supabase.from("clientes")
+        .update({ motos_compradas: Math.max((cliente.motos_compradas || 0) - 1, 0) })
+        .eq("id", existente.cliente_id);
+    }
+  }
+
+  const { error } = await supabase.from("vendas").delete().eq("id", req.params.id);
+  if (error) throw error;
+  res.status(204).end();
 }));
 
 // ---------------------------------------------------------

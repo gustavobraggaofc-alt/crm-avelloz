@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CRM Avelloz - Vendas</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">A</div>
+        <div class="header__title">
+          CRM AVELLOZ
+          <small>SISTEMA DE VENDAS</small>
+        </div>
+      </div>
+      <div class="header__user">
+        <span>Olá, Admin</span>
+        <div class="header__avatar">AD</div>
+      </div>
+    </header>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Vendas</h1>
+          <p>Histórico de vendas registradas</p>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="busca-venda" placeholder="Buscar por cliente ou moto…" />
+          <select id="filtro-status">
+            <option value="">Todos os status</option>
+            <option>Concluída</option>
+            <option>Financiamento</option>
+            <option>Aguardando pagamento</option>
+            <option>Cancelada</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- CARDS RESUMO -->
+      <section class="cards-grid">
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🧾</span> Total de Vendas
+          </div>
+          <div class="value" id="kpi-total-vendas">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">✅</span> Concluídas
+          </div>
+          <div class="value" id="kpi-concluidas">0</div>
+        </div>
+
+        <div class="card card--kpi">
+          <div class="label">
+            <span class="icon-badge">🚫</span> Canceladas
+          </div>
+          <div class="value" id="kpi-canceladas">0</div>
+        </div>
+
+        <div class="card card--kpi" id="card-faturamento-total">
+          <div class="label">
+            <span class="icon-badge">💰</span> Faturamento Total
+          </div>
+          <div class="value" id="kpi-faturamento-total">R$ 0</div>
+        </div>
+      </section>
+
+      <!-- TABELA DE VENDAS -->
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Vendedor</th>
+              <th>Moto</th>
+              <th id="th-valor">Valor</th>
+              <th>Pagamento</th>
+              <th>Status</th>
+              <th id="th-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="lista-vendas">
+            <!-- preenchido via JS -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="footer">
+      <span>© 2026 Avelloz Motos - CRM de Vendas</span>
+      <a href="#">Suporte</a>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/script.js"></script>
+  <script>
+    const CLASSE_BADGE_VENDA = {
+      "Concluída": "badge--success",
+      "Financiamento": "badge--info",
+      "Aguardando pagamento": "badge--warning",
+      "Cancelada": "badge--danger",
+    };
+
+    let vendasCache = [];
+    let isAdmin = false;
+
+    function vendasFiltradas() {
+      const termo = document.getElementById("busca-venda").value.trim().toLowerCase();
+      const status = document.getElementById("filtro-status").value;
+
+      return vendasCache.filter((v) => {
+        const passaStatus = !status || v.status === status;
+        const passaBusca = !termo ||
+          (v.cliente_nome || "").toLowerCase().includes(termo) ||
+          (v.moto_descricao || "").toLowerCase().includes(termo);
+        return passaStatus && passaBusca;
+      });
+    }
+
+    function atualizarKPIs() {
+      const total = vendasCache.length;
+      const concluidas = vendasCache.filter((v) => v.status === "Concluída").length;
+      const canceladas = vendasCache.filter((v) => v.status === "Cancelada").length;
+
+      document.getElementById("kpi-total-vendas").textContent = total;
+      document.getElementById("kpi-concluidas").textContent = concluidas;
+      document.getElementById("kpi-canceladas").textContent = canceladas;
+
+      if (isAdmin) {
+        const faturamento = vendasCache
+          .filter((v) => v.status !== "Cancelada")
+          .reduce((soma, v) => soma + (v.valor || 0), 0);
+        document.getElementById("kpi-faturamento-total").textContent = formatarMoeda(faturamento);
+      }
+    }
+
+    function renderizarTabela() {
+      const tbody = document.getElementById("lista-vendas");
+      const lista = vendasFiltradas();
+      tbody.innerHTML = "";
+
+      if (!lista.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="nota">Nenhuma venda encontrada.</td></tr>`;
+        return;
+      }
+
+      lista.forEach((v) => {
+        const classeBadge = CLASSE_BADGE_VENDA[v.status] || "badge--info";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${v.data}</td>
+          <td>${v.cliente_nome}</td>
+          <td>${v.vendedor_nome || "-"}</td>
+          <td class="cell-truncate">${v.moto_descricao || "-"}</td>
+          ${isAdmin ? `<td>${formatarMoeda(v.valor)}</td>` : ""}
+          <td>${v.forma_pagamento || "-"}</td>
+          <td><span class="badge ${classeBadge}">${v.status}</span></td>
+          ${isAdmin ? `
+            <td>
+              <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${v.id}">✏️</button>
+              <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${v.id}">🗑️</button>
+            </td>
+          ` : ""}
+        `;
+        tbody.appendChild(tr);
+      });
+
+      substituirIcones();
+    }
+
+    async function carregarVendedoresNomes(lista) {
+      // /api/vendas não traz o nome do vendedor (só vendedor_id); resolve via /api/vendedores.
+      const vendedores = await API.listarVendedores().catch(() => []);
+      const porId = new Map(vendedores.map((v) => [v.id, v.nome]));
+      return lista.map((v) => ({ ...v, vendedor_nome: porId.get(v.vendedor_id) || null }));
+    }
+
+    async function carregarVendas() {
+      const dados = await API.listarVendas(500);
+      vendasCache = await carregarVendedoresNomes(dados);
+      atualizarKPIs();
+      renderizarTabela();
+    }
+
+    function abrirFormularioVenda(venda) {
+      abrirModal("Editar Venda", `
+        <form id="form-venda-editar">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="ve-cliente">Nome do Cliente</label>
+              <input type="text" id="ve-cliente" required value="${venda.cliente_nome || ""}" />
+            </div>
+            <div class="field">
+              <label for="ve-telefone">Telefone</label>
+              <input type="text" id="ve-telefone" value="${venda.cliente_telefone || ""}" />
+            </div>
+            <div class="field">
+              <label for="ve-cpf">CPF</label>
+              <input type="text" id="ve-cpf" value="${venda.cliente_cpf || ""}" />
+            </div>
+            <div class="field full">
+              <label for="ve-moto">Veículo</label>
+              <input type="text" id="ve-moto" value="${venda.moto_descricao || ""}" />
+            </div>
+            <div class="field">
+              <label for="ve-valor">Valor</label>
+              <input type="text" id="ve-valor" value="${formatarMoeda(venda.valor)}" />
+            </div>
+            <div class="field">
+              <label for="ve-pagamento">Forma de Pagamento</label>
+              <select id="ve-pagamento">
+                ${["À vista", "Financiamento", "Consórcio", "Cartão de Crédito"]
+                  .map((p) => `<option ${venda.forma_pagamento === p ? "selected" : ""}>${p}</option>`)
+                  .join("")}
+              </select>
+            </div>
+            <div class="field full">
+              <label for="ve-status">Status</label>
+              <select id="ve-status">
+                ${["Concluída", "Financiamento", "Aguardando pagamento", "Cancelada"]
+                  .map((s) => `<option ${venda.status === s ? "selected" : ""}>${s}</option>`)
+                  .join("")}
+              </select>
+            </div>
+            <div class="field full">
+              <label for="ve-observacoes">Observações</label>
+              <textarea id="ve-observacoes" rows="3">${venda.observacoes || ""}</textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="btn-cancelar-venda">Cancelar</button>
+            <button type="submit" class="btn btn--primary">Salvar Alterações</button>
+          </div>
+        </form>
+      `);
+
+      document.getElementById("btn-cancelar-venda").addEventListener("click", fecharModal);
+
+      document.getElementById("form-venda-editar").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const dados = {
+          cliente_nome: document.getElementById("ve-cliente").value.trim(),
+          cliente_telefone: document.getElementById("ve-telefone").value.trim(),
+          cliente_cpf: document.getElementById("ve-cpf").value.trim(),
+          moto_descricao: document.getElementById("ve-moto").value.trim(),
+          valor: parseMoeda(document.getElementById("ve-valor").value),
+          forma_pagamento: document.getElementById("ve-pagamento").value,
+          status: document.getElementById("ve-status").value,
+          observacoes: document.getElementById("ve-observacoes").value.trim(),
+        };
+
+        const btn = e.target.querySelector("button[type=submit]");
+        btn.disabled = true;
+        btn.textContent = "Salvando…";
+
+        try {
+          await API.atualizarVenda(venda.id, dados);
+          mostrarToast("Venda atualizada com sucesso!");
+          fecharModal();
+          await carregarVendas();
+        } catch (erro) {
+          mostrarToast(`Erro ao salvar: ${erro.message}`, "error");
+          btn.disabled = false;
+          btn.textContent = "Salvar Alterações";
+        }
+      });
+    }
+
+    document.getElementById("lista-vendas").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-acao]");
+      if (!btn) return;
+
+      const id = Number(btn.dataset.id);
+      const venda = vendasCache.find((v) => v.id === id);
+      if (!venda) return;
+
+      if (btn.dataset.acao === "editar") {
+        abrirFormularioVenda(venda);
+      } else if (btn.dataset.acao === "excluir") {
+        confirmarExclusao(
+          `Deseja realmente excluir a venda de <strong>${venda.cliente_nome}</strong>? O estoque e as estatísticas do vendedor serão ajustados automaticamente. Esta ação não pode ser desfeita.`,
+          async () => {
+            try {
+              await API.excluirVenda(id);
+              mostrarToast("Venda excluída.");
+              await carregarVendas();
+            } catch (erro) {
+              mostrarToast(`Erro ao excluir: ${erro.message}`, "error");
+            }
+          }
+        );
+      }
+    });
+
+    document.getElementById("busca-venda").addEventListener("input", renderizarTabela);
+    document.getElementById("filtro-status").addEventListener("change", renderizarTabela);
+
+    async function init() {
+      const sessao = await API.obterSessao().catch(() => null);
+      isAdmin = sessao?.role === "admin";
+
+      if (!isAdmin) {
+        document.getElementById("card-faturamento-total").style.display = "none";
+        document.getElementById("th-valor").style.display = "none";
+        document.getElementById("th-acoes").style.display = "none";
+      }
+
+      await carregarVendas();
+    }
+    init();
+  </script>
+</body>
+</html>

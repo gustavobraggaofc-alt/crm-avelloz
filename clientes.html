@@ -104,6 +104,7 @@
   <script src="js/script.js"></script>
   <script>
     let clientesCache = [];
+    let isAdmin = false;
 
     function clientesFiltrados() {
       const termo = document.getElementById("busca-cliente").value.trim().toLowerCase();
@@ -240,14 +241,14 @@
                 <tr>
                   <td>${v.data}</td>
                   <td>${v.moto_descricao || "-"}</td>
-                  <td>${formatarMoeda(v.valor)}</td>
+                  ${isAdmin ? `<td>${formatarMoeda(v.valor)}</td>` : ""}
                   <td>${v.forma_pagamento || "-"}</td>
                   <td><span class="badge badge--info">${v.status}</span></td>
                 </tr>
               `
             )
             .join("")
-        : `<tr><td colspan="5" class="nota">Nenhuma compra registrada.</td></tr>`;
+        : `<tr><td colspan="${isAdmin ? 5 : 4}" class="nota">Nenhuma compra registrada.</td></tr>`;
 
       abrirModal("Detalhes do Cliente", `
         <div class="detalhe-grid">
@@ -284,7 +285,7 @@
               <tr>
                 <th>Data</th>
                 <th>Moto</th>
-                <th>Valor</th>
+                ${isAdmin ? "<th>Valor</th>" : ""}
                 <th>Pagamento</th>
                 <th>Status</th>
               </tr>
@@ -322,7 +323,12 @@
       }
     });
 
-    renderizarClientes();
+    async function init() {
+      const sessao = await API.obterSessao().catch(() => null);
+      isAdmin = sessao?.role === "admin";
+      await renderizarClientes();
+    }
+    init();
   </script>
 </body>
 </html>

@@ -59,6 +59,8 @@ const API = {
   // Vendas
   listarVendas: (limite) => apiRequest("GET", `/vendas${limite ? `?limite=${limite}` : ""}`),
   registrarVenda: (dados) => apiRequest("POST", "/vendas", dados),
+  atualizarVenda: (id, dados) => apiRequest("PUT", `/vendas/${id}`, dados),
+  excluirVenda: (id) => apiRequest("DELETE", `/vendas/${id}`),
 
   // Agenda
   listarAgenda: () => apiRequest("GET", "/agenda"),

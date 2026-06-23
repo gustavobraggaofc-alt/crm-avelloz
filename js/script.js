@@ -89,6 +89,7 @@ function injetarFavicon() {
 const MENU_ITEMS = [
   { label: "Dashboard", icon: "home", page: "index.html" },
   { label: "Vender", icon: "dollar-sign", page: "vender.html" },
+  { label: "Vendas", icon: "file-text", page: "vendas.html" },
   { label: "Financiamento", icon: "calculator", page: "financiamento.html" },
   { label: "Clientes", icon: "users", page: "clientes.html" },
   { label: "Estoque", icon: "motorcycle", page: "estoque.html" },
