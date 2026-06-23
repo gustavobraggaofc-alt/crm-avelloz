@@ -67,7 +67,7 @@
           <div class="value" id="kpi-faturamento-mes">R$ 0</div>
         </div>
 
-        <div class="card card--kpi">
+        <div class="card card--kpi" id="card-meta-mes">
           <div class="label">
             <span class="icon-badge">🎯</span> Meta do Mês
           </div>
@@ -79,8 +79,8 @@
       </section>
 
       <!-- GRÁFICO + RANKING RESUMIDO -->
-      <section class="content-grid">
-        <div class="panel">
+      <section class="content-grid" id="grid-graficos">
+        <div class="panel" id="panel-vendas-mes">
           <div class="panel__title">
             Vendas por mês
             <span class="tag">Últimos 6 meses</span>
@@ -144,12 +144,14 @@
 
       if (!isAdmin) {
         document.getElementById("card-faturamento").style.display = "none";
+        document.getElementById("card-meta-mes").style.display = "none";
+        document.getElementById("panel-vendas-mes").style.display = "none";
+        document.getElementById("grid-graficos").style.gridTemplateColumns = "1fr";
         document.getElementById("th-valor").style.display = "none";
       }
 
       document.getElementById("kpi-vendas-hoje").textContent = dados.vendasHoje;
       document.getElementById("kpi-vendas-mes").textContent = dados.vendasMes;
-      document.getElementById("kpi-faturamento-mes").textContent = formatarMoeda(dados.faturamentoMes);
 
       const diff = dados.vendasHoje - dados.vendasOntem;
       const deltaEl = document.getElementById("kpi-vendas-hoje-delta");
@@ -164,22 +166,25 @@
         deltaEl.textContent = "Igual a ontem";
       }
 
-      document.getElementById("kpi-meta-mes").textContent = `${dados.percentualMeta}%`;
-      document.getElementById("kpi-meta-mes-bar").style.width = `${Math.min(dados.percentualMeta, 100)}%`;
+      if (isAdmin) {
+        document.getElementById("kpi-faturamento-mes").textContent = formatarMoeda(dados.faturamentoMes);
+        document.getElementById("kpi-meta-mes").textContent = `${dados.percentualMeta}%`;
+        document.getElementById("kpi-meta-mes-bar").style.width = `${Math.min(dados.percentualMeta, 100)}%`;
 
-      const chartVendasMes = document.getElementById("chart-vendas-mes");
-      const maiorValor = Math.max(1, ...dados.vendasPorMes.map((m) => m.valor));
-      chartVendasMes.innerHTML = dados.vendasPorMes
-        .map((m) => {
-          const altura = m.valor > 0 ? Math.max(2, Math.round((m.valor / maiorValor) * 100)) : 0;
-          return `
-            <div class="bar-wrap">
-              <div class="bar" style="height: ${altura}%;" data-valor="${formatarMoeda(m.valor)}"></div>
-              <span class="bar-label">${m.label}</span>
-            </div>
-          `;
-        })
-        .join("");
+        const chartVendasMes = document.getElementById("chart-vendas-mes");
+        const maiorValor = Math.max(1, ...dados.vendasPorMes.map((m) => m.valor));
+        chartVendasMes.innerHTML = dados.vendasPorMes
+          .map((m) => {
+            const altura = m.valor > 0 ? Math.max(2, Math.round((m.valor / maiorValor) * 100)) : 0;
+            return `
+              <div class="bar-wrap">
+                <div class="bar" style="height: ${altura}%;" data-valor="${formatarMoeda(m.valor)}"></div>
+                <span class="bar-label">${m.label}</span>
+              </div>
+            `;
+          })
+          .join("");
+      }
 
       const classePos = ["gold", "silver", "bronze"];
       const miniRanking = document.getElementById("mini-ranking");

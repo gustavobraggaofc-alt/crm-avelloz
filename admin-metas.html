@@ -125,7 +125,12 @@
       }
     });
 
-    renderizarMetas();
+    async function init() {
+      const sessao = await exigirAdmin();
+      if (!sessao) return;
+      await renderizarMetas();
+    }
+    init();
   </script>
 </body>
 </html>

@@ -352,7 +352,8 @@
 
     // ---- Inicializar ----
     async function init() {
-      try { sessaoAtual = await API.obterSessao(); } catch {}
+      sessaoAtual = await exigirAdmin();
+      if (!sessaoAtual) return;
       await carregarUsuarios();
     }
 

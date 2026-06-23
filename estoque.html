@@ -56,7 +56,7 @@
           <div class="value" id="kpi-modelos">0</div>
         </div>
 
-        <div class="card card--kpi">
+        <div class="card card--kpi" id="card-valor-estoque">
           <div class="label">
             <span class="icon-badge">💰</span> Valor em Estoque
           </div>
@@ -83,7 +83,7 @@
               <th>Valor</th>
               <th>Quantidade</th>
               <th>Status</th>
-              <th>Ações</th>
+              <th id="th-acoes">Ações</th>
             </tr>
           </thead>
           <tbody id="lista-estoque">
@@ -112,6 +112,7 @@
     };
 
     let motosCache = [];
+    let isAdmin = false;
 
     function motosFiltradas() {
       const termo = document.getElementById("busca-moto").value.trim().toLowerCase();
@@ -143,8 +144,10 @@
           <td>${m.quantidade}</td>
           <td><span class="badge ${classeBadge}">${m.status}</span></td>
           <td>
-            <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${m.id}">✏️</button>
-            <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${m.id}">🗑️</button>
+            ${isAdmin ? `
+              <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${m.id}">✏️</button>
+              <button class="btn btn--icon" title="Excluir" data-acao="excluir" data-id="${m.id}">🗑️</button>
+            ` : `<span class="nota">—</span>`}
           </td>
         `;
         tbody.appendChild(tr);
@@ -285,7 +288,18 @@
       }
     });
 
-    renderizarEstoque();
+    async function init() {
+      const sessao = await API.obterSessao().catch(() => null);
+      isAdmin = sessao?.role === "admin";
+
+      if (!isAdmin) {
+        document.getElementById("btn-adicionar-moto").style.display = "none";
+        document.getElementById("card-valor-estoque").style.display = "none";
+      }
+
+      await renderizarEstoque();
+    }
+    init();
   </script>
 </body>
 </html>

@@ -139,24 +139,39 @@ app.use("/api", (req, res, next) => {
 
 app.get("/api/me", (req, res) => res.json(req.usuario));
 
+// Bloqueia o acesso a quem não é administrador. Aplicado às rotas que
+// expõem ou alteram dados sigilosos (cadastro de usuários, papéis,
+// comissões, metas, gestão de estoque).
+function exigirAdmin(req, res, next) {
+  if (req.usuario?.role !== "admin") {
+    return res.status(403).json({ erro: "Acesso restrito a administradores" });
+  }
+  next();
+}
+
 // ---------------------------------------------------------
 // VENDEDORES
 // ---------------------------------------------------------
 
+// Lista de vendedores: qualquer usuário autenticado pode consultar (é usada
+// em selects de "vendedor responsável" em Vender/Agenda), mas só o admin
+// recebe os campos sigilosos (e-mail, telefone, meta, comissão, vendas).
 app.get("/api/vendedores", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").order("nome");
   if (error) throw error;
-  res.json(semSenhaLista(data));
+  const lista = semSenhaLista(data);
+  if (req.usuario.role === "admin") return res.json(lista);
+  res.json(lista.map((v) => ({ id: v.id, nome: v.nome })));
 }));
 
-app.get("/api/vendedores/:id", wrap(async (req, res) => {
+app.get("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").eq("id", req.params.id).maybeSingle();
   if (error) throw error;
   if (!data) return res.status(404).json({ erro: "Vendedor não encontrado" });
   res.json(semSenha(data));
 }));
 
-app.post("/api/vendedores", wrap(async (req, res) => {
+app.post("/api/vendedores", exigirAdmin, wrap(async (req, res) => {
   const { nome, email, telefone, meta, comissao, senha, role } = req.body;
   if (!nome || !email || !senha) return res.status(400).json({ erro: "Nome, e-mail e senha são obrigatórios" });
   if (senha.length < 6) return res.status(400).json({ erro: "Senha deve ter pelo menos 6 caracteres" });
@@ -185,7 +200,7 @@ app.post("/api/vendedores", wrap(async (req, res) => {
   res.status(201).json(semSenha(data));
 }));
 
-app.put("/api/vendedores/:id", wrap(async (req, res) => {
+app.put("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
   const { data: existente, error: errBusca } = await supabase
     .from("vendedores")
     .select("*")
@@ -222,7 +237,7 @@ app.put("/api/vendedores/:id", wrap(async (req, res) => {
   res.json(semSenha(data));
 }));
 
-app.delete("/api/vendedores/:id", wrap(async (req, res) => {
+app.delete("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
   const { error } = await supabase.from("vendedores").delete().eq("id", req.params.id);
   if (error) throw error;
   res.status(204).end();
@@ -308,7 +323,7 @@ app.get("/api/motos", wrap(async (req, res) => {
   res.json(data);
 }));
 
-app.post("/api/motos", wrap(async (req, res) => {
+app.post("/api/motos", exigirAdmin, wrap(async (req, res) => {
   const { modelo, marca, ano, cor, valor, quantidade, status } = req.body;
   if (!modelo || !marca) return res.status(400).json({ erro: "Modelo e marca são obrigatórios" });
 
@@ -339,7 +354,7 @@ app.post("/api/motos", wrap(async (req, res) => {
   res.status(201).json(atualizado);
 }));
 
-app.put("/api/motos/:id", wrap(async (req, res) => {
+app.put("/api/motos/:id", exigirAdmin, wrap(async (req, res) => {
   const { data: existente, error: errBusca } = await supabase
     .from("motos")
     .select("*")
@@ -375,7 +390,7 @@ app.put("/api/motos/:id", wrap(async (req, res) => {
   res.json(atualizado);
 }));
 
-app.delete("/api/motos/:id", wrap(async (req, res) => {
+app.delete("/api/motos/:id", exigirAdmin, wrap(async (req, res) => {
   const { error } = await supabase.from("motos").delete().eq("id", req.params.id);
   if (error) throw error;
   res.status(204).end();
@@ -594,8 +609,14 @@ app.get("/api/ranking", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").order("vendas_mes", { ascending: false });
   if (error) throw error;
 
-  const ranking = semSenhaLista(data).map((v, i) => ({
-    ...v,
+  // O ranking é só um placar de desempenho entre vendedores: não precisa
+  // expor e-mail, telefone ou comissão de ninguém para montar isso.
+  const ranking = data.map((v, i) => ({
+    id: v.id,
+    nome: v.nome,
+    vendas_mes: v.vendas_mes || 0,
+    motos_vendidas: v.motos_vendidas || 0,
+    meta: v.meta || 0,
     posicao: i + 1,
     percentual: v.meta > 0 ? Math.round((v.vendas_mes / v.meta) * 100) : 0,
   }));
@@ -679,16 +700,30 @@ app.get("/api/dashboard", wrap(async (req, res) => {
 
   const vendasPorMes = buckets.map(({ label, valor }) => ({ label, valor }));
 
+  const ultimasVendas = comVendedorNome(ultimasVendasRaw);
+  const ehAdmin = req.usuario.role === "admin";
+
+  // Faturamento, meta e os valores em R$ de vendas/ranking são dados
+  // financeiros da empresa: só o admin recebe esses campos. Vendedores
+  // recebem só as contagens (quantas vendas), sem nenhum valor monetário.
   res.json({
     vendasHoje: vendasHoje || 0,
     vendasOntem: vendasOntem || 0,
     vendasMes: totais.unidades,
-    faturamentoMes: totais.faturamento,
-    metaTotal: totais.meta,
-    percentualMeta: totais.meta > 0 ? Math.round((totais.faturamento / totais.meta) * 100) : 0,
-    topVendedores,
-    ultimasVendas: comVendedorNome(ultimasVendasRaw),
-    vendasPorMes,
+    topVendedores: ehAdmin
+      ? topVendedores
+      : topVendedores.map((v) => ({ nome: v.nome, motos_vendidas: v.motos_vendidas })),
+    ultimasVendas: ehAdmin
+      ? ultimasVendas
+      : ultimasVendas.map(({ valor, ...resto }) => resto),
+    ...(ehAdmin
+      ? {
+          faturamentoMes: totais.faturamento,
+          metaTotal: totais.meta,
+          percentualMeta: totais.meta > 0 ? Math.round((totais.faturamento / totais.meta) * 100) : 0,
+          vendasPorMes,
+        }
+      : {}),
   });
 }));
 

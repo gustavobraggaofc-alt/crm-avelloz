@@ -99,6 +99,7 @@ const MENU_ITEMS = [
   {
     label: "Administração",
     icon: "settings",
+    adminOnly: true,
     children: [
       { label: "Cadastrar Vendedor", page: "admin.html" },
       { label: "Metas", page: "admin-metas.html" },
@@ -112,10 +113,11 @@ function renderizarMenu() {
   const sidebar = document.getElementById("sidebar");
   if (!sidebar) return;
 
+  const ehAdmin = window.SESSAO_ATUAL?.role === "admin";
   const paginaAtual = window.location.pathname.split("/").pop() || "index.html";
   let html = `<span class="sidebar__section">Menu</span>`;
 
-  MENU_ITEMS.forEach((item) => {
+  MENU_ITEMS.filter((item) => !item.adminOnly || ehAdmin).forEach((item) => {
     if (item.children) {
       const filhoAtivo = item.children.some((c) => c.page === paginaAtual);
 
@@ -286,8 +288,26 @@ async function verificarSessao() {
     if (nomeEl) nomeEl.textContent = `Olá, ${usuario.nome.split(" ")[0]}`;
     if (avatarEl) avatarEl.textContent = iniciais(usuario.nome);
     popularDropdownUsuario(usuario);
+    renderizarMenu(); // re-renderiza agora que sabemos o perfil (admin vs vendedor)
   } catch {
     window.location.href = "login.html";
+  }
+}
+
+// Usado pelas páginas restritas a administradores (cadastro de usuários,
+// metas, permissões, configurações). Redireciona quem não é admin.
+async function exigirAdmin() {
+  try {
+    const sessao = await API.obterSessao();
+    if (sessao.role !== "admin") {
+      mostrarToast("Acesso restrito a administradores.", "error");
+      window.location.href = "index.html";
+      return null;
+    }
+    return sessao;
+  } catch {
+    window.location.href = "login.html";
+    return null;
   }
 }
 
