@@ -53,6 +53,36 @@ function comVendedorNome(linhas) {
   });
 }
 
+// Soma faturamento e unidades vendidas no mês corrente por vendedor, direto
+// da tabela vendas. Não usa vendedores.vendas_mes/motos_vendidas porque esses
+// contadores são cumulativos (nunca são zerados na virada do mês), o que fazia
+// o dashboard/ranking mostrarem vendas de meses anteriores como "deste mês".
+async function statsMesPorVendedor() {
+  const { data: vendas, error } = await supabase
+    .from("vendas")
+    .select("vendedor_id, valor, status, data");
+  if (error) throw error;
+
+  const agora = new Date();
+  const mesAtual = agora.getMonth() + 1;
+  const anoAtual = agora.getFullYear();
+
+  const porVendedor = new Map();
+  for (const venda of vendas) {
+    if (venda.status === "Cancelada" || !venda.vendedor_id) continue;
+    const partes = String(venda.data || "").split("/");
+    if (partes.length !== 3) continue;
+    const [, mm, yyyy] = partes;
+    if (Number(mm) !== mesAtual || Number(yyyy) !== anoAtual) continue;
+
+    const atual = porVendedor.get(venda.vendedor_id) || { faturamento: 0, unidades: 0 };
+    atual.faturamento += venda.valor || 0;
+    atual.unidades += 1;
+    porVendedor.set(venda.vendedor_id, atual);
+  }
+  return porVendedor;
+}
+
 class ErroValidacao extends Error {
   constructor(mensagem) {
     super(mensagem);
@@ -160,8 +190,14 @@ app.get("/api/vendedores", wrap(async (req, res) => {
   const { data, error } = await supabase.from("vendedores").select("*").order("nome");
   if (error) throw error;
   const lista = semSenhaLista(data);
-  if (req.usuario.role === "admin") return res.json(lista);
-  res.json(lista.map((v) => ({ id: v.id, nome: v.nome })));
+  if (req.usuario.role !== "admin") return res.json(lista.map((v) => ({ id: v.id, nome: v.nome })));
+
+  const statsMes = await statsMesPorVendedor();
+  res.json(lista.map((v) => ({
+    ...v,
+    vendas_mes: statsMes.get(v.id)?.faturamento || 0,
+    motos_vendidas: statsMes.get(v.id)?.unidades || 0,
+  })));
 }));
 
 app.get("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
@@ -725,20 +761,27 @@ app.delete("/api/agenda/:id", wrap(async (req, res) => {
 // ---------------------------------------------------------
 
 app.get("/api/ranking", wrap(async (req, res) => {
-  const { data, error } = await supabase.from("vendedores").select("*").order("vendas_mes", { ascending: false });
+  const { data, error } = await supabase.from("vendedores").select("id, nome, meta");
   if (error) throw error;
+
+  const statsMes = await statsMesPorVendedor();
 
   // O ranking é só um placar de desempenho entre vendedores: não precisa
   // expor e-mail, telefone ou comissão de ninguém para montar isso.
-  const ranking = data.map((v, i) => ({
-    id: v.id,
-    nome: v.nome,
-    vendas_mes: v.vendas_mes || 0,
-    motos_vendidas: v.motos_vendidas || 0,
-    meta: v.meta || 0,
-    posicao: i + 1,
-    percentual: v.meta > 0 ? Math.round((v.vendas_mes / v.meta) * 100) : 0,
-  }));
+  const ranking = data
+    .map((v) => {
+      const vendasMes = statsMes.get(v.id)?.faturamento || 0;
+      return {
+        id: v.id,
+        nome: v.nome,
+        vendas_mes: vendasMes,
+        motos_vendidas: statsMes.get(v.id)?.unidades || 0,
+        meta: v.meta || 0,
+        percentual: v.meta > 0 ? Math.round((vendasMes / v.meta) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.vendas_mes - a.vendas_mes)
+    .map((v, i) => ({ ...v, posicao: i + 1 }));
   res.json(ranking);
 }));
 
@@ -764,25 +807,32 @@ app.get("/api/dashboard", wrap(async (req, res) => {
 
   const { data: vendedoresData, error: errVend } = await supabase
     .from("vendedores")
-    .select("vendas_mes, motos_vendidas, meta");
+    .select("id, nome, meta");
   if (errVend) throw errVend;
 
+  const statsMes = await statsMesPorVendedor();
+
   const totais = vendedoresData.reduce(
-    (acc, v) => ({
-      faturamento: acc.faturamento + (v.vendas_mes || 0),
-      unidades: acc.unidades + (v.motos_vendidas || 0),
-      meta: acc.meta + (v.meta || 0),
-    }),
+    (acc, v) => {
+      const stats = statsMes.get(v.id);
+      return {
+        faturamento: acc.faturamento + (stats?.faturamento || 0),
+        unidades: acc.unidades + (stats?.unidades || 0),
+        meta: acc.meta + (v.meta || 0),
+      };
+    },
     { faturamento: 0, unidades: 0, meta: 0 }
   );
 
-  const { data: topVendedoresRaw, error: errTop } = await supabase
-    .from("vendedores")
-    .select("*")
-    .order("vendas_mes", { ascending: false })
-    .limit(4);
-  if (errTop) throw errTop;
-  const topVendedores = semSenhaLista(topVendedoresRaw);
+  const topVendedores = vendedoresData
+    .map((v) => ({
+      id: v.id,
+      nome: v.nome,
+      vendas_mes: statsMes.get(v.id)?.faturamento || 0,
+      motos_vendidas: statsMes.get(v.id)?.unidades || 0,
+    }))
+    .sort((a, b) => b.vendas_mes - a.vendas_mes)
+    .slice(0, 4);
 
   const { data: ultimasVendasRaw, error: errUltimas } = await supabase
     .from("vendas")
