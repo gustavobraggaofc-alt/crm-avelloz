@@ -53,19 +53,39 @@ function comVendedorNome(linhas) {
   });
 }
 
-// Soma faturamento e unidades vendidas no mês corrente por vendedor, direto
-// da tabela vendas. Não usa vendedores.vendas_mes/motos_vendidas porque esses
-// contadores são cumulativos (nunca são zerados na virada do mês), o que fazia
-// o dashboard/ranking mostrarem vendas de meses anteriores como "deste mês".
-async function statsMesPorVendedor() {
+// Traduz o parâmetro ?periodo= (mes | mes_passado | ano) num predicado de
+// mês/ano e no número de meses que ele cobre (usado pra escalar a meta, que
+// é mensal). "mes" é o padrão quando o parâmetro vem ausente ou inválido.
+function resolverPeriodo(periodo) {
+  const agora = new Date();
+  const anoAtual = agora.getFullYear();
+  const mesAtual = agora.getMonth() + 1;
+
+  if (periodo === "mes_passado") {
+    const mesAlvo = mesAtual === 1 ? 12 : mesAtual - 1;
+    const anoAlvo = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+    return { dentroDoPeriodo: (mm, yyyy) => mm === mesAlvo && yyyy === anoAlvo, mesesNoPeriodo: 1 };
+  }
+  if (periodo === "ano") {
+    return { dentroDoPeriodo: (mm, yyyy) => yyyy === anoAtual, mesesNoPeriodo: mesAtual };
+  }
+  return { dentroDoPeriodo: (mm, yyyy) => mm === mesAtual && yyyy === anoAtual, mesesNoPeriodo: 1 };
+}
+
+// Soma faturamento e unidades vendidas por vendedor, direto da tabela vendas,
+// filtrado pelo predicado de período (mês corrente por padrão). Não usa
+// vendedores.vendas_mes/motos_vendidas porque esses contadores são
+// cumulativos (nunca são zerados na virada do mês), o que fazia o
+// dashboard/ranking mostrarem vendas de meses anteriores como "deste mês".
+async function statsMesPorVendedor(dentroDoPeriodo) {
   const { data: vendas, error } = await supabase
     .from("vendas")
     .select("vendedor_id, valor, status, data");
   if (error) throw error;
 
-  const agora = new Date();
-  const mesAtual = agora.getMonth() + 1;
-  const anoAtual = agora.getFullYear();
+  if (!dentroDoPeriodo) {
+    dentroDoPeriodo = resolverPeriodo("mes").dentroDoPeriodo;
+  }
 
   const porVendedor = new Map();
   for (const venda of vendas) {
@@ -73,7 +93,7 @@ async function statsMesPorVendedor() {
     const partes = String(venda.data || "").split("/");
     if (partes.length !== 3) continue;
     const [, mm, yyyy] = partes;
-    if (Number(mm) !== mesAtual || Number(yyyy) !== anoAtual) continue;
+    if (!dentroDoPeriodo(Number(mm), Number(yyyy))) continue;
 
     const atual = porVendedor.get(venda.vendedor_id) || { faturamento: 0, unidades: 0 };
     atual.faturamento += venda.valor || 0;
@@ -810,7 +830,8 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     .select("id, nome, meta");
   if (errVend) throw errVend;
 
-  const statsMes = await statsMesPorVendedor();
+  const { dentroDoPeriodo, mesesNoPeriodo } = resolverPeriodo(req.query.periodo);
+  const statsMes = await statsMesPorVendedor(dentroDoPeriodo);
 
   const totais = vendedoresData.reduce(
     (acc, v) => {
@@ -818,7 +839,7 @@ app.get("/api/dashboard", wrap(async (req, res) => {
       return {
         faturamento: acc.faturamento + (stats?.faturamento || 0),
         unidades: acc.unidades + (stats?.unidades || 0),
-        meta: acc.meta + (v.meta || 0),
+        meta: acc.meta + (v.meta || 0) * mesesNoPeriodo,
       };
     },
     { faturamento: 0, unidades: 0, meta: 0 }
@@ -835,12 +856,10 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     .slice(0, 4);
 
   const agora = new Date();
-  const mesAtual = agora.getMonth() + 1;
-  const anoAtual = agora.getFullYear();
 
-  // Busca um lote recente e filtra em memória pro mês corrente, senão a
-  // tabela de "últimas vendas" mistura vendas de meses anteriores junto
-  // com as do mês atual sempre que há menos de 5 vendas neste mês.
+  // Busca um lote recente e filtra em memória pro período escolhido, senão a
+  // tabela de "últimas vendas" mistura vendas de outros meses junto com as
+  // do período atual sempre que há menos de 5 vendas nele.
   const { data: recentesRaw, error: errUltimas } = await supabase
     .from("vendas")
     .select("*, vendedores(nome)")
@@ -853,7 +872,7 @@ app.get("/api/dashboard", wrap(async (req, res) => {
       const partes = String(v.data || "").split("/");
       if (partes.length !== 3) return false;
       const [, mm, yyyy] = partes;
-      return Number(mm) === mesAtual && Number(yyyy) === anoAtual;
+      return dentroDoPeriodo(Number(mm), Number(yyyy));
     })
     .slice(0, 5);
 

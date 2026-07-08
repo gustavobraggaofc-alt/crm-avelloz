@@ -35,10 +35,10 @@
           <p>Visão geral das vendas da Avelloz Motos</p>
         </div>
         <div class="toolbar">
-          <select>
-            <option>Este mês</option>
-            <option>Mês passado</option>
-            <option>Este ano</option>
+          <select id="seletor-periodo">
+            <option value="mes">Este mês</option>
+            <option value="mes_passado">Mês passado</option>
+            <option value="ano">Este ano</option>
           </select>
         </div>
       </div>
@@ -55,21 +55,21 @@
 
         <div class="card card--kpi">
           <div class="label">
-            <span class="icon-badge">📦</span> Vendas no Mês
+            <span class="icon-badge">📦</span> <span id="label-vendas-periodo">Vendas no Mês</span>
           </div>
           <div class="value" id="kpi-vendas-mes">0</div>
         </div>
 
         <div class="card card--kpi" id="card-faturamento">
           <div class="label">
-            <span class="icon-badge">💰</span> Faturamento do Mês
+            <span class="icon-badge">💰</span> <span id="label-faturamento-periodo">Faturamento do Mês</span>
           </div>
           <div class="value" id="kpi-faturamento-mes">R$ 0</div>
         </div>
 
         <div class="card card--kpi" id="card-meta-mes">
           <div class="label">
-            <span class="icon-badge">🎯</span> Meta do Mês
+            <span class="icon-badge">🎯</span> <span id="label-meta-periodo">Meta do Mês</span>
           </div>
           <div class="value" id="kpi-meta-mes">0%</div>
           <div class="progress">
@@ -93,7 +93,7 @@
         <div class="panel">
           <div class="panel__title">
             Top Vendedores
-            <span class="tag">Mês atual</span>
+            <span class="tag" id="tag-periodo-ranking">Mês atual</span>
           </div>
           <div class="mini-ranking" id="mini-ranking">
             <!-- preenchido via JS -->
@@ -139,8 +139,23 @@
       "Cancelada": "badge--danger",
     };
 
-    async function renderizarDashboard(isAdmin) {
-      const dados = await API.obterDashboard();
+    const LABELS_PERIODO = {
+      mes: { vendas: "Vendas no Mês", faturamento: "Faturamento do Mês", meta: "Meta do Mês", tag: "Mês atual", vazio: "Nenhuma venda registrada neste mês." },
+      mes_passado: { vendas: "Vendas no Mês Passado", faturamento: "Faturamento do Mês Passado", meta: "Meta do Mês Passado", tag: "Mês passado", vazio: "Nenhuma venda registrada no mês passado." },
+      ano: { vendas: "Vendas no Ano", faturamento: "Faturamento do Ano", meta: "Meta do Ano", tag: "Este ano", vazio: "Nenhuma venda registrada neste ano." },
+    };
+
+    let isAdminAtual = false;
+
+    async function renderizarDashboard(isAdmin, periodo = "mes") {
+      isAdminAtual = isAdmin;
+      const dados = await API.obterDashboard(periodo);
+      const labels = LABELS_PERIODO[periodo] || LABELS_PERIODO.mes;
+
+      document.getElementById("label-vendas-periodo").textContent = labels.vendas;
+      document.getElementById("label-faturamento-periodo").textContent = labels.faturamento;
+      document.getElementById("label-meta-periodo").textContent = labels.meta;
+      document.getElementById("tag-periodo-ranking").textContent = labels.tag;
 
       if (!isAdmin) {
         document.getElementById("card-faturamento").style.display = "none";
@@ -189,7 +204,7 @@
       const classePos = ["gold", "silver", "bronze"];
       const miniRanking = document.getElementById("mini-ranking");
       if (dados.topVendedores.length === 0) {
-        miniRanking.innerHTML = `<p class="nota">Nenhuma venda registrada neste mês.</p>`;
+        miniRanking.innerHTML = `<p class="nota">${labels.vazio}</p>`;
       } else {
         miniRanking.innerHTML = dados.topVendedores
           .map((v, i) => `
@@ -222,6 +237,10 @@
         })
         .join("");
     }
+
+    document.getElementById("seletor-periodo").addEventListener("change", (e) => {
+      renderizarDashboard(isAdminAtual, e.target.value);
+    });
 
     async function initDashboard() {
       const sessao = await API.obterSessao().catch(() => null);

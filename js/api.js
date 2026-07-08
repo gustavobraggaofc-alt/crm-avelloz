@@ -70,7 +70,7 @@ const API = {
 
   // Ranking e Dashboard
   obterRanking: () => apiRequest("GET", "/ranking"),
-  obterDashboard: () => apiRequest("GET", "/dashboard"),
+  obterDashboard: (periodo) => apiRequest("GET", `/dashboard${periodo ? `?periodo=${periodo}` : ""}`),
 
   // Simulações
   salvarSimulacaoFinanciamento: (dados) => apiRequest("POST", "/simulacoes/financiamento", dados),
