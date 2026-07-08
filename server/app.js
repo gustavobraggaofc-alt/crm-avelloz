@@ -834,12 +834,28 @@ app.get("/api/dashboard", wrap(async (req, res) => {
     .sort((a, b) => b.vendas_mes - a.vendas_mes)
     .slice(0, 4);
 
-  const { data: ultimasVendasRaw, error: errUltimas } = await supabase
+  const agora = new Date();
+  const mesAtual = agora.getMonth() + 1;
+  const anoAtual = agora.getFullYear();
+
+  // Busca um lote recente e filtra em memória pro mês corrente, senão a
+  // tabela de "últimas vendas" mistura vendas de meses anteriores junto
+  // com as do mês atual sempre que há menos de 5 vendas neste mês.
+  const { data: recentesRaw, error: errUltimas } = await supabase
     .from("vendas")
     .select("*, vendedores(nome)")
     .order("id", { ascending: false })
-    .limit(5);
+    .limit(200);
   if (errUltimas) throw errUltimas;
+
+  const ultimasVendasRaw = recentesRaw
+    .filter((v) => {
+      const partes = String(v.data || "").split("/");
+      if (partes.length !== 3) return false;
+      const [, mm, yyyy] = partes;
+      return Number(mm) === mesAtual && Number(yyyy) === anoAtual;
+    })
+    .slice(0, 5);
 
   const { data: todasVendas, error: errTodasVendas } = await supabase
     .from("vendas")
@@ -847,7 +863,6 @@ app.get("/api/dashboard", wrap(async (req, res) => {
   if (errTodasVendas) throw errTodasVendas;
 
   const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-  const agora = new Date();
   const buckets = [];
   for (let i = 5; i >= 0; i--) {
     const ref = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
