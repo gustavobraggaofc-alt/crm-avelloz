@@ -351,7 +351,26 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
   if (errBusca) throw errBusca;
   if (!existente) return res.status(404).json({ erro: "Cliente não encontrado" });
 
-  const { nome, telefone, email, cpf } = req.body;
+  const { nome, telefone, email, cpf, vendedor_id } = req.body;
+
+  // Só admin pode definir/corrigir manualmente quem cadastrou o cliente
+  // (histórico anterior a essa funcionalidade não tinha essa informação).
+  let vendedorId = existente.vendedor_id;
+  if (req.usuario.role === "admin" && vendedor_id !== undefined) {
+    if (vendedor_id === null || vendedor_id === "") {
+      vendedorId = null;
+    } else {
+      const { data: vendedor, error: errVendedor } = await supabase
+        .from("vendedores")
+        .select("id")
+        .eq("id", vendedor_id)
+        .maybeSingle();
+      if (errVendedor) throw errVendedor;
+      if (!vendedor) throw new ErroValidacao("Vendedor não encontrado");
+      vendedorId = vendedor.id;
+    }
+  }
+
   const { data, error } = await supabase
     .from("clientes")
     .update({
@@ -359,6 +378,7 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
       telefone: telefone ?? existente.telefone,
       email: email ?? existente.email,
       cpf: cpf ?? existente.cpf,
+      vendedor_id: vendedorId,
     })
     .eq("id", req.params.id)
     .select("*, vendedores(nome)")

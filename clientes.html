@@ -95,6 +95,7 @@
               <th>CPF</th>
               <th>Última Compra</th>
               <th>Motos Compradas</th>
+              <th>Cadastrado por</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -143,6 +144,7 @@
           <td>${c.cpf || "-"}</td>
           <td>${c.ultima_compra || "-"}</td>
           <td><span class="badge ${classeBadge}">${c.motos_compradas || 0}</span></td>
+          <td>${c.vendedor_nome || "-"}</td>
           <td>
             <button class="btn btn--icon" title="Ver" data-acao="ver" data-id="${c.id}">👁️</button>
             <button class="btn btn--icon" title="Editar" data-acao="editar" data-id="${c.id}">✏️</button>
@@ -153,7 +155,7 @@
       });
 
       if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="nota">Nenhum cliente encontrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="nota">Nenhum cliente encontrado.</td></tr>`;
       }
 
       substituirIcones();
@@ -216,15 +218,30 @@
 
       renderizarTabela();
 
-      if (isAdmin) {
-        document.getElementById("grid-grafico-clientes").style.display = "";
-        await renderizarGraficoClientesPorVendedor();
-      }
+      document.getElementById("grid-grafico-clientes").style.display = "";
+      await renderizarGraficoClientesPorVendedor();
     }
 
-    function abrirFormularioCliente(cliente) {
+    async function abrirFormularioCliente(cliente) {
       const editando = Boolean(cliente);
       const titulo = editando ? "Editar Cliente" : "Novo Cliente";
+
+      let campoVendedor = "";
+      if (isAdmin && editando) {
+        const vendedores = await API.listarVendedores().catch(() => []);
+        const opcoes = vendedores
+          .map((v) => `<option value="${v.id}" ${v.id === cliente.vendedor_id ? "selected" : ""}>${v.nome}</option>`)
+          .join("");
+        campoVendedor = `
+          <div class="field full">
+            <label for="cf-vendedor">Cadastrado por</label>
+            <select id="cf-vendedor">
+              <option value="">-- Não informado --</option>
+              ${opcoes}
+            </select>
+          </div>
+        `;
+      }
 
       abrirModal(titulo, `
         <form id="form-cliente">
@@ -245,6 +262,7 @@
               <label for="cf-cpf">CPF</label>
               <input type="text" id="cf-cpf" placeholder="000.000.000-00" value="${cliente?.cpf || ""}" />
             </div>
+            ${campoVendedor}
           </div>
           <div class="form-actions">
             <button type="button" class="btn btn--ghost" id="btn-cancelar-cliente">Cancelar</button>
@@ -264,6 +282,11 @@
           email: document.getElementById("cf-email").value.trim(),
           cpf: document.getElementById("cf-cpf").value.trim(),
         };
+
+        const selectVendedor = document.getElementById("cf-vendedor");
+        if (selectVendedor) {
+          dados.vendedor_id = selectVendedor.value ? Number(selectVendedor.value) : null;
+        }
 
         try {
           if (editando) {
