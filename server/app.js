@@ -304,16 +304,20 @@ app.delete("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
 // ---------------------------------------------------------
 
 app.get("/api/clientes", wrap(async (req, res) => {
-  const { data, error } = await supabase.from("clientes").select("*").order("nome");
+  const { data, error } = await supabase.from("clientes").select("*, vendedores(nome)").order("nome");
   if (error) throw error;
-  res.json(data);
+  res.json(comVendedorNome(data));
 }));
 
 app.get("/api/clientes/:id", wrap(async (req, res) => {
-  const { data, error } = await supabase.from("clientes").select("*").eq("id", req.params.id).maybeSingle();
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("*, vendedores(nome)")
+    .eq("id", req.params.id)
+    .maybeSingle();
   if (error) throw error;
   if (!data) return res.status(404).json({ erro: "Cliente não encontrado" });
-  res.json(data);
+  res.json(comVendedorNome([data])[0]);
 }));
 
 app.post("/api/clientes", wrap(async (req, res) => {
@@ -329,12 +333,13 @@ app.post("/api/clientes", wrap(async (req, res) => {
       cpf: cpf || "",
       ultima_compra: "",
       motos_compradas: 0,
+      vendedor_id: req.usuario.id,
     })
-    .select()
+    .select("*, vendedores(nome)")
     .single();
   if (error) throw error;
 
-  res.status(201).json(data);
+  res.status(201).json(comVendedorNome([data])[0]);
 }));
 
 app.put("/api/clientes/:id", wrap(async (req, res) => {
@@ -356,11 +361,11 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
       cpf: cpf ?? existente.cpf,
     })
     .eq("id", req.params.id)
-    .select()
+    .select("*, vendedores(nome)")
     .single();
   if (error) throw error;
 
-  res.json(data);
+  res.json(comVendedorNome([data])[0]);
 }));
 
 app.delete("/api/clientes/:id", wrap(async (req, res) => {
@@ -539,6 +544,7 @@ app.post("/api/vendas", wrap(async (req, res) => {
         cpf: cliente_cpf || "",
         ultima_compra: hoje,
         motos_compradas: 1,
+        vendedor_id: vendedor_id || req.usuario.id,
       })
       .select()
       .single();

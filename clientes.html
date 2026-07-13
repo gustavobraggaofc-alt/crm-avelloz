@@ -71,6 +71,19 @@
         </div>
       </section>
 
+      <!-- GRÁFICO: CLIENTES CADASTRADOS POR VENDEDOR -->
+      <section class="content-grid" id="grid-grafico-clientes" style="display:none;">
+        <div class="panel" style="grid-column: 1 / -1;">
+          <div class="panel__title">
+            Clientes cadastrados por vendedor
+            <span class="tag">Total acumulado</span>
+          </div>
+          <div class="chart-bars" id="chart-clientes-vendedor">
+            <!-- preenchido via JS -->
+          </div>
+        </div>
+      </section>
+
       <!-- TABELA DE CLIENTES -->
       <section class="table-wrap">
         <table>
@@ -146,6 +159,40 @@
       substituirIcones();
     }
 
+    async function renderizarGraficoClientesPorVendedor() {
+      const vendedores = await API.listarVendedores().catch(() => []);
+      const container = document.getElementById("chart-clientes-vendedor");
+
+      const contagem = new Map(vendedores.map((v) => [v.id, 0]));
+      clientesCache.forEach((c) => {
+        if (c.vendedor_id && contagem.has(c.vendedor_id)) {
+          contagem.set(c.vendedor_id, contagem.get(c.vendedor_id) + 1);
+        }
+      });
+
+      const dados = vendedores
+        .map((v) => ({ nome: v.nome, total: contagem.get(v.id) || 0 }))
+        .sort((a, b) => b.total - a.total);
+
+      if (!dados.length) {
+        container.innerHTML = `<p class="nota">Nenhum vendedor cadastrado.</p>`;
+        return;
+      }
+
+      const maior = Math.max(1, ...dados.map((d) => d.total));
+      container.innerHTML = dados
+        .map((d) => {
+          const altura = d.total > 0 ? Math.max(2, Math.round((d.total / maior) * 100)) : 0;
+          return `
+            <div class="bar-wrap">
+              <div class="bar" style="height: ${altura}%;" data-valor="${d.total}"></div>
+              <span class="bar-label">${d.nome}</span>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
     async function renderizarClientes() {
       clientesCache = await API.listarClientes();
 
@@ -168,6 +215,11 @@
       document.getElementById("kpi-aniversariantes").textContent = "0";
 
       renderizarTabela();
+
+      if (isAdmin) {
+        document.getElementById("grid-grafico-clientes").style.display = "";
+        await renderizarGraficoClientesPorVendedor();
+      }
     }
 
     function abrirFormularioCliente(cliente) {
@@ -275,6 +327,10 @@
           <div class="detalhe-item">
             <div class="detalhe-item__label">Motos Compradas</div>
             <div class="detalhe-item__valor">${cliente.motos_compradas || 0}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-item__label">Cadastrado por</div>
+            <div class="detalhe-item__valor">${cliente.vendedor_nome || "-"}</div>
           </div>
         </div>
 

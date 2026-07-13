@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS clientes (
   email TEXT,
   cpf TEXT,
   ultima_compra TEXT,
-  motos_compradas INTEGER DEFAULT 0
+  motos_compradas INTEGER DEFAULT 0,
+  vendedor_id BIGINT REFERENCES vendedores(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS motos (
