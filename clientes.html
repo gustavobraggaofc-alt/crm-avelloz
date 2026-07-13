@@ -119,6 +119,7 @@
   <script>
     let clientesCache = [];
     let isAdmin = false;
+    let sessaoAtual = null;
 
     function clientesFiltrados() {
       const termo = document.getElementById("busca-cliente").value.trim().toLowerCase();
@@ -227,10 +228,11 @@
       const titulo = editando ? "Editar Cliente" : "Novo Cliente";
 
       let campoVendedor = "";
-      if (isAdmin && editando) {
+      if (isAdmin) {
         const vendedores = await API.listarVendedores().catch(() => []);
+        const vendedorSelecionado = editando ? cliente.vendedor_id : sessaoAtual?.id;
         const opcoes = vendedores
-          .map((v) => `<option value="${v.id}" ${v.id === cliente.vendedor_id ? "selected" : ""}>${v.nome}</option>`)
+          .map((v) => `<option value="${v.id}" ${v.id === vendedorSelecionado ? "selected" : ""}>${v.nome}</option>`)
           .join("");
         campoVendedor = `
           <div class="field full">
@@ -403,8 +405,8 @@
     });
 
     async function init() {
-      const sessao = await API.obterSessao().catch(() => null);
-      isAdmin = sessao?.role === "admin";
+      sessaoAtual = await API.obterSessao().catch(() => null);
+      isAdmin = sessaoAtual?.role === "admin";
       await renderizarClientes();
     }
     init();

@@ -321,8 +321,27 @@ app.get("/api/clientes/:id", wrap(async (req, res) => {
 }));
 
 app.post("/api/clientes", wrap(async (req, res) => {
-  const { nome, telefone, email, cpf } = req.body;
+  const { nome, telefone, email, cpf, vendedor_id } = req.body;
   if (!nome) return res.status(400).json({ erro: "Nome é obrigatório" });
+
+  // Por padrão, quem cadastra é o próprio usuário logado. Só admin pode
+  // atribuir o cadastro a outro vendedor (ex.: recepção cadastrando em
+  // nome de quem atendeu o cliente).
+  let vendedorId = req.usuario.id;
+  if (req.usuario.role === "admin" && vendedor_id !== undefined) {
+    if (vendedor_id === null || vendedor_id === "") {
+      vendedorId = null;
+    } else {
+      const { data: vendedor, error: errVendedor } = await supabase
+        .from("vendedores")
+        .select("id")
+        .eq("id", vendedor_id)
+        .maybeSingle();
+      if (errVendedor) throw errVendedor;
+      if (!vendedor) throw new ErroValidacao("Vendedor não encontrado");
+      vendedorId = vendedor.id;
+    }
+  }
 
   const { data, error } = await supabase
     .from("clientes")
@@ -333,7 +352,7 @@ app.post("/api/clientes", wrap(async (req, res) => {
       cpf: cpf || "",
       ultima_compra: "",
       motos_compradas: 0,
-      vendedor_id: req.usuario.id,
+      vendedor_id: vendedorId,
     })
     .select("*, vendedores(nome)")
     .single();
