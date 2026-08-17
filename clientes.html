@@ -36,6 +36,9 @@
         </div>
         <div class="toolbar">
           <input type="text" id="busca-cliente" placeholder="Buscar cliente..." />
+          <select id="filtro-vendedor" style="display:none;">
+            <option value="">Todos os vendedores</option>
+          </select>
           <button class="btn btn--primary" type="button" id="btn-novo-cliente">+ Novo Cliente</button>
         </div>
       </div>
@@ -123,10 +126,30 @@
 
     function clientesFiltrados() {
       const termo = document.getElementById("busca-cliente").value.trim().toLowerCase();
-      if (!termo) return clientesCache;
-      return clientesCache.filter((c) =>
-        [c.nome, c.telefone, c.email, c.cpf].some((campo) => (campo || "").toLowerCase().includes(termo))
-      );
+      const vendedorId = document.getElementById("filtro-vendedor").value;
+
+      let lista = clientesCache;
+      if (vendedorId) {
+        lista = lista.filter((c) => String(c.vendedor_id || "") === vendedorId);
+      }
+      if (termo) {
+        lista = lista.filter((c) =>
+          [c.nome, c.telefone, c.email, c.cpf].some((campo) => (campo || "").toLowerCase().includes(termo))
+        );
+      }
+      return lista;
+    }
+
+    async function popularFiltroVendedor() {
+      const select = document.getElementById("filtro-vendedor");
+      const vendedores = await API.listarVendedores().catch(() => []);
+      vendedores.forEach((v) => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.nome;
+        select.appendChild(opt);
+      });
+      select.style.display = "";
     }
 
     function renderizarTabela() {
@@ -384,6 +407,7 @@
 
     document.getElementById("btn-novo-cliente").addEventListener("click", () => abrirFormularioCliente(null));
     document.getElementById("busca-cliente").addEventListener("input", renderizarTabela);
+    document.getElementById("filtro-vendedor").addEventListener("change", renderizarTabela);
 
     document.getElementById("lista-clientes").addEventListener("click", async (e) => {
       const btn = e.target.closest("button[data-acao]");
@@ -416,6 +440,8 @@
       if (!isAdmin) {
         document.getElementById("titulo-pagina").textContent = "Meus Clientes";
         document.getElementById("subtitulo-pagina").textContent = "Clientes que você cadastrou";
+      } else {
+        await popularFiltroVendedor();
       }
 
       await renderizarClientes();
