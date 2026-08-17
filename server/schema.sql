@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS vendedores (
   meta DOUBLE PRECISION DEFAULT 0,
   comissao DOUBLE PRECISION DEFAULT 0,
   vendas_mes DOUBLE PRECISION DEFAULT 0,
-  motos_vendidas INTEGER DEFAULT 0
+  motos_vendidas INTEGER DEFAULT 0,
+  ultimo_login TIMESTAMPTZ,
+  ultimo_acesso TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS clientes (

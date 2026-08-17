@@ -64,6 +64,10 @@
           <div class="label"><span class="icon-badge">🎯</span> Meta Média</div>
           <div class="value" id="kpi-meta-media">R$ 0</div>
         </div>
+        <div class="card card--kpi">
+          <div class="label"><span class="icon-badge">🟢</span> Online Agora</div>
+          <div class="value" id="kpi-online">0</div>
+        </div>
       </section>
 
       <!-- TABELA DE USUÁRIOS -->
@@ -73,6 +77,7 @@
             <tr>
               <th>Usuário</th>
               <th>Perfil</th>
+              <th>Status</th>
               <th>Telefone</th>
               <th>Meta Mensal</th>
               <th>Comissão</th>
@@ -80,7 +85,7 @@
             </tr>
           </thead>
           <tbody id="lista-usuarios">
-            <tr><td colspan="6" class="nota">Carregando…</td></tr>
+            <tr><td colspan="7" class="nota">Carregando…</td></tr>
           </tbody>
         </table>
       </section>
@@ -102,6 +107,38 @@
     let termoBusca = "";
     let filtroPerfil = "";
 
+    // Mesma janela usada no backend (server/app.js) pra decidir "online":
+    // teve alguma requisição autenticada nos últimos 5 minutos.
+    const ONLINE_LIMITE_MS = 5 * 60 * 1000;
+
+    function estaOnline(u) {
+      if (!u.ultimo_acesso) return false;
+      return Date.now() - new Date(u.ultimo_acesso).getTime() < ONLINE_LIMITE_MS;
+    }
+
+    function formatarTempoRelativo(isoString) {
+      const diffMs = Date.now() - new Date(isoString).getTime();
+      const min = Math.floor(diffMs / 60000);
+      if (min < 1) return "agora mesmo";
+      if (min < 60) return `há ${min} min`;
+      const horas = Math.floor(min / 60);
+      if (horas < 24) return `há ${horas}h`;
+      const dias = Math.floor(horas / 24);
+      if (dias === 1) return "ontem";
+      if (dias < 30) return `há ${dias} dias`;
+      return new Date(isoString).toLocaleDateString("pt-BR");
+    }
+
+    function statusHTML(u) {
+      if (!u.ultimo_login) {
+        return `<span class="badge badge--warning">Nunca logou</span>`;
+      }
+      if (estaOnline(u)) {
+        return `<span class="badge badge--success">🟢 Online</span>`;
+      }
+      return `<span class="badge badge--info">Offline · ${formatarTempoRelativo(u.ultimo_acesso || u.ultimo_login)}</span>`;
+    }
+
     // ---- Filtro ----
     function usuariosFiltrados() {
       return usuariosCache.filter((u) => {
@@ -120,11 +157,13 @@
       const admins    = lista.filter((u) => u.role === "admin").length;
       const vendedores = lista.filter((u) => u.role !== "admin").length;
       const metaMedia  = lista.length ? lista.reduce((s, u) => s + (u.meta || 0), 0) / lista.length : 0;
+      const online     = lista.filter(estaOnline).length;
 
       document.getElementById("kpi-total").textContent     = lista.length;
       document.getElementById("kpi-admins").textContent    = admins;
       document.getElementById("kpi-vendedores").textContent = vendedores;
       document.getElementById("kpi-meta-media").textContent = formatarMoeda(metaMedia);
+      document.getElementById("kpi-online").textContent    = online;
     }
 
     // ---- Renderizar tabela ----
@@ -134,7 +173,7 @@
       tbody.innerHTML = "";
 
       if (!lista.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="nota">Nenhum usuário encontrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="nota">Nenhum usuário encontrado.</td></tr>`;
         return;
       }
 
@@ -158,6 +197,7 @@
             </div>
           </td>
           <td>${badge}</td>
+          <td>${statusHTML(u)}</td>
           <td>${u.telefone || "—"}</td>
           <td>${formatarMoeda(u.meta || 0)}</td>
           <td>${(u.comissao || 0).toFixed(1)}%</td>
@@ -355,6 +395,10 @@
       sessaoAtual = await exigirAdmin();
       if (!sessaoAtual) return;
       await carregarUsuarios();
+
+      // Atualiza o status online/offline periodicamente sem precisar
+      // recarregar a página.
+      setInterval(carregarUsuarios, 30000);
     }
 
     init();

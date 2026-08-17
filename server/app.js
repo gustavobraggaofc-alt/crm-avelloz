@@ -14,6 +14,15 @@ const app = express();
 const JWT_SECRET = process.env.JWT_SECRET;
 const COOKIE_AUTH = "crm_token";
 
+// Um vendedor é considerado "online" se teve alguma requisição autenticada
+// nos últimos ONLINE_LIMITE_MS. ULTIMO_ACESSO_THROTTLE_MS evita gravar no
+// banco a cada requisição (uma página normalmente dispara várias chamadas
+// de API em sequência) — só atualiza ultimo_acesso uma vez por minuto por
+// usuário, o que é preciso o suficiente pra saber quem está online agora.
+const ONLINE_LIMITE_MS = 5 * 60 * 1000;
+const ULTIMO_ACESSO_THROTTLE_MS = 60 * 1000;
+const ultimoAcessoRegistradoEm = new Map();
+
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
@@ -161,6 +170,9 @@ app.post("/api/login", wrap(async (req, res) => {
   const senhaOk = vendedor?.senha_hash && bcrypt.compareSync(senha, vendedor.senha_hash);
   if (!senhaOk) return res.status(401).json({ erro: "E-mail ou senha inválidos" });
 
+  const agora = new Date().toISOString();
+  await supabase.from("vendedores").update({ ultimo_login: agora, ultimo_acesso: agora }).eq("id", vendedor.id);
+
   const token = jwt.sign(
     { id: vendedor.id, nome: vendedor.nome, email: vendedor.email, role: vendedor.role },
     JWT_SECRET,
@@ -191,6 +203,14 @@ app.use("/api", (req, res, next) => {
     next();
   } catch {
     return res.status(401).json({ erro: "Sessão inválida ou expirada" });
+  }
+
+  const agora = Date.now();
+  const ultimoRegistro = ultimoAcessoRegistradoEm.get(req.usuario.id) || 0;
+  if (agora - ultimoRegistro > ULTIMO_ACESSO_THROTTLE_MS) {
+    ultimoAcessoRegistradoEm.set(req.usuario.id, agora);
+    supabase.from("vendedores").update({ ultimo_acesso: new Date().toISOString() }).eq("id", req.usuario.id)
+      .then(({ error }) => { if (error) console.error("Falha ao atualizar ultimo_acesso:", error.message); });
   }
 });
 
