@@ -55,7 +55,9 @@
           </div>
           <div class="field">
             <label for="vendedor">Vendedor Responsável</label>
-            <select id="vendedor"></select>
+            <select id="vendedor" required>
+              <option value="">Selecione...</option>
+            </select>
           </div>
 
           <div class="field full">
@@ -73,7 +75,7 @@
 
           <div class="field">
             <label for="valor">Valor da Venda</label>
-            <input type="text" id="valor" placeholder="R$ 0,00" />
+            <input type="text" id="valor" placeholder="R$ 0,00" required />
           </div>
           <div class="field">
             <label for="pagamento">Forma de Pagamento</label>
@@ -93,7 +95,7 @@
 
         <div class="form-actions">
           <button type="reset" class="btn btn--ghost">Limpar</button>
-          <button type="submit" class="btn btn--primary">Registrar Venda</button>
+          <button type="submit" class="btn btn--primary" id="btn-registrar-venda">Registrar Venda</button>
         </div>
       </form>
 
@@ -188,7 +190,16 @@
 
       const motos = await API.listarMotos();
       const moto = motos.find((m) => m.id === Number(btn.dataset.id));
-      if (!moto) return;
+      if (!moto) {
+        mostrarToast("Essa moto não existe mais no estoque.", "error");
+        await carregarEstoque();
+        return;
+      }
+      if (moto.quantidade <= 0) {
+        mostrarToast("Essa moto acabou de ficar sem estoque.", "error");
+        await carregarEstoque();
+        return;
+      }
 
       motoSelecionada = moto;
       document.getElementById("moto-descricao").value = `${moto.marca} ${moto.modelo}`.trim();
@@ -202,8 +213,11 @@
       motoSelecionada = null;
     });
 
+    const btnRegistrarVenda = document.getElementById("btn-registrar-venda");
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (btnRegistrarVenda.disabled) return;
 
       const dados = {
         cliente_nome: document.getElementById("cliente-nome").value.trim(),
@@ -217,6 +231,7 @@
         observacoes: document.getElementById("observacoes").value.trim(),
       };
 
+      btnRegistrarVenda.disabled = true;
       try {
         await API.registrarVenda(dados);
         mostrarToast("Venda registrada com sucesso!");
@@ -225,6 +240,8 @@
         await carregarEstoque();
       } catch (erro) {
         mostrarToast(`Erro ao registrar venda: ${erro.message}`, "error");
+      } finally {
+        btnRegistrarVenda.disabled = false;
       }
     });
 

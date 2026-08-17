@@ -46,6 +46,13 @@ function dataHojeBR() {
   return new Date().toLocaleDateString("pt-BR");
 }
 
+// Remove pontuação do CPF (mantém só dígitos) para que o mesmo CPF digitado
+// com máscaras diferentes ("111.111.111-11" vs "11111111111") sempre bata
+// na busca por cliente existente, evitando cadastros duplicados.
+function normalizarCpf(cpf) {
+  return (cpf || "").replace(/\D/g, "");
+}
+
 function comVendedorNome(linhas) {
   return linhas.map((linha) => {
     const { vendedores, ...resto } = linha;
@@ -303,8 +310,12 @@ app.delete("/api/vendedores/:id", exigirAdmin, wrap(async (req, res) => {
 // CLIENTES
 // ---------------------------------------------------------
 
+// Vendedor comum só vê os clientes que ele mesmo cadastrou; admin vê todos.
 app.get("/api/clientes", wrap(async (req, res) => {
-  const { data, error } = await supabase.from("clientes").select("*, vendedores(nome)").order("nome");
+  let query = supabase.from("clientes").select("*, vendedores(nome)").order("nome");
+  if (req.usuario.role !== "admin") query = query.eq("vendedor_id", req.usuario.id);
+
+  const { data, error } = await query;
   if (error) throw error;
   res.json(comVendedorNome(data));
 }));
@@ -316,7 +327,9 @@ app.get("/api/clientes/:id", wrap(async (req, res) => {
     .eq("id", req.params.id)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return res.status(404).json({ erro: "Cliente não encontrado" });
+  if (!data || (req.usuario.role !== "admin" && data.vendedor_id !== req.usuario.id)) {
+    return res.status(404).json({ erro: "Cliente não encontrado" });
+  }
   res.json(comVendedorNome([data])[0]);
 }));
 
@@ -349,7 +362,7 @@ app.post("/api/clientes", wrap(async (req, res) => {
       nome,
       telefone: telefone || "",
       email: email || "",
-      cpf: cpf || "",
+      cpf: normalizarCpf(cpf),
       ultima_compra: "",
       motos_compradas: 0,
       vendedor_id: vendedorId,
@@ -368,7 +381,9 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
     .eq("id", req.params.id)
     .maybeSingle();
   if (errBusca) throw errBusca;
-  if (!existente) return res.status(404).json({ erro: "Cliente não encontrado" });
+  if (!existente || (req.usuario.role !== "admin" && existente.vendedor_id !== req.usuario.id)) {
+    return res.status(404).json({ erro: "Cliente não encontrado" });
+  }
 
   const { nome, telefone, email, cpf, vendedor_id } = req.body;
 
@@ -396,7 +411,7 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
       nome: nome ?? existente.nome,
       telefone: telefone ?? existente.telefone,
       email: email ?? existente.email,
-      cpf: cpf ?? existente.cpf,
+      cpf: cpf !== undefined ? normalizarCpf(cpf) : existente.cpf,
       vendedor_id: vendedorId,
     })
     .eq("id", req.params.id)
@@ -408,6 +423,18 @@ app.put("/api/clientes/:id", wrap(async (req, res) => {
 }));
 
 app.delete("/api/clientes/:id", wrap(async (req, res) => {
+  if (req.usuario.role !== "admin") {
+    const { data: existente, error: errBusca } = await supabase
+      .from("clientes")
+      .select("vendedor_id")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (errBusca) throw errBusca;
+    if (!existente || existente.vendedor_id !== req.usuario.id) {
+      return res.status(404).json({ erro: "Cliente não encontrado" });
+    }
+  }
+
   const { error } = await supabase.from("clientes").delete().eq("id", req.params.id);
   if (error) throw error;
   res.status(204).end();
@@ -527,17 +554,25 @@ app.post("/api/vendas", wrap(async (req, res) => {
     status,
   } = req.body;
 
-  if (!cliente_nome || !valor) {
-    return res.status(400).json({ erro: "Cliente e valor são obrigatórios" });
+  if (!cliente_nome && !valor) {
+    return res.status(400).json({ erro: "Nome do cliente e valor são obrigatórios" });
+  }
+  if (!cliente_nome) {
+    return res.status(400).json({ erro: "Nome do cliente é obrigatório" });
+  }
+  if (!valor) {
+    return res.status(400).json({ erro: "Valor é obrigatório" });
   }
 
   const valorValidado = validarNumero(valor, { campo: "Valor", min: 0.01 });
+  const cpfNormalizado = normalizarCpf(cliente_cpf);
 
   let moto = null;
   if (moto_id) {
     const { data, error } = await supabase.from("motos").select("*").eq("id", moto_id).maybeSingle();
     if (error) throw error;
     if (!data) throw new ErroValidacao("Moto não encontrada");
+    if (data.quantidade <= 0) throw new ErroValidacao("Essa moto não tem estoque disponível");
     moto = data;
   }
 
@@ -551,16 +586,31 @@ app.post("/api/vendas", wrap(async (req, res) => {
 
   const hoje = dataHojeBR();
 
+  // Usa .limit(1) em vez de .maybeSingle(): com 2+ clientes cadastrados com
+  // o mesmo nome (comum, já que "nome" não é único), .maybeSingle() lançava
+  // erro do Postgrest ("multiple rows returned") e a venda inteira falhava
+  // com um 500 sem explicação. Aqui sempre pega o primeiro match (ou nenhum),
+  // nunca quebra.
   let cliente = null;
-  if (cliente_cpf) {
-    const { data, error } = await supabase.from("clientes").select("*").eq("cpf", cliente_cpf).maybeSingle();
+  if (cpfNormalizado) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("*")
+      .eq("cpf", cpfNormalizado)
+      .order("id", { ascending: true })
+      .limit(1);
     if (error) throw error;
-    cliente = data;
+    cliente = data[0] || null;
   }
   if (!cliente) {
-    const { data, error } = await supabase.from("clientes").select("*").eq("nome", cliente_nome).maybeSingle();
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("*")
+      .eq("nome", cliente_nome)
+      .order("id", { ascending: true })
+      .limit(1);
     if (error) throw error;
-    cliente = data;
+    cliente = data[0] || null;
   }
 
   if (cliente) {
@@ -568,7 +618,7 @@ app.post("/api/vendas", wrap(async (req, res) => {
       .from("clientes")
       .update({
         telefone: cliente_telefone || cliente.telefone,
-        cpf: cliente_cpf || cliente.cpf,
+        cpf: cpfNormalizado || cliente.cpf,
         ultima_compra: hoje,
         motos_compradas: (cliente.motos_compradas || 0) + 1,
       })
@@ -580,7 +630,7 @@ app.post("/api/vendas", wrap(async (req, res) => {
       .insert({
         nome: cliente_nome,
         telefone: cliente_telefone || "",
-        cpf: cliente_cpf || "",
+        cpf: cpfNormalizado,
         ultima_compra: hoje,
         motos_compradas: 1,
         vendedor_id: vendedor_id || req.usuario.id,
@@ -592,11 +642,22 @@ app.post("/api/vendas", wrap(async (req, res) => {
   }
 
   if (moto) {
-    const { error: errUpdate } = await supabase
+    // Update condicional (optimistic concurrency): só decrementa se a
+    // quantidade ainda for a mesma que acabamos de ler. Se outra venda
+    // simultânea já mexeu no estoque dessa moto, affectedRows vem vazio e
+    // a venda é abortada com um erro claro, em vez de vender a mesma
+    // última unidade duas vezes ou sobrescrever o estoque com um valor errado.
+    const { data: motoAtualizada, error: errUpdate } = await supabase
       .from("motos")
-      .update({ quantidade: Math.max(moto.quantidade - 1, 0) })
-      .eq("id", moto_id);
+      .update({ quantidade: moto.quantidade - 1 })
+      .eq("id", moto_id)
+      .eq("quantidade", moto.quantidade)
+      .select()
+      .maybeSingle();
     if (errUpdate) throw errUpdate;
+    if (!motoAtualizada) {
+      throw new ErroValidacao("O estoque dessa moto acabou de mudar (outra venda em andamento). Tente novamente.");
+    }
     await recalcularStatusMoto(moto_id);
   }
 
@@ -617,7 +678,7 @@ app.post("/api/vendas", wrap(async (req, res) => {
       cliente_id: cliente.id,
       cliente_nome,
       cliente_telefone: cliente_telefone || "",
-      cliente_cpf: cliente_cpf || "",
+      cliente_cpf: cpfNormalizado,
       vendedor_id: vendedor_id || null,
       moto_id: moto_id || null,
       moto_descricao: moto_descricao || "",

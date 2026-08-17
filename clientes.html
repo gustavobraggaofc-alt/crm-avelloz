@@ -31,8 +31,8 @@
     <main class="main">
       <div class="page-header">
         <div>
-          <h1>Clientes</h1>
-          <p>Gerencie a base de clientes da Avelloz Motos</p>
+          <h1 id="titulo-pagina">Clientes</h1>
+          <p id="subtitulo-pagina">Gerencie a base de clientes da Avelloz Motos</p>
         </div>
         <div class="toolbar">
           <input type="text" id="busca-cliente" placeholder="Buscar cliente..." />
@@ -219,8 +219,13 @@
 
       renderizarTabela();
 
-      document.getElementById("grid-grafico-clientes").style.display = "";
-      await renderizarGraficoClientesPorVendedor();
+      // O gráfico compara clientes cadastrados entre vendedores — só faz
+      // sentido para admin, já que um vendedor comum agora só enxerga os
+      // próprios clientes (todo mundo mais apareceria com 0, o que confunde).
+      if (isAdmin) {
+        document.getElementById("grid-grafico-clientes").style.display = "";
+        await renderizarGraficoClientesPorVendedor();
+      }
     }
 
     async function abrirFormularioCliente(cliente) {
@@ -407,6 +412,12 @@
     async function init() {
       sessaoAtual = await API.obterSessao().catch(() => null);
       isAdmin = sessaoAtual?.role === "admin";
+
+      if (!isAdmin) {
+        document.getElementById("titulo-pagina").textContent = "Meus Clientes";
+        document.getElementById("subtitulo-pagina").textContent = "Clientes que você cadastrou";
+      }
+
       await renderizarClientes();
     }
     init();
